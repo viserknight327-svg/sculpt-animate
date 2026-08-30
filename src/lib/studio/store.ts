@@ -56,7 +56,12 @@ type StudioState = {
   keyframeTimes: number[];
   materialNames: string[];
   targetBones: string[];
-  setRigInfo: (info: { clips: string[]; materials: string[]; bones: string[] }) => void;
+  setRigInfo: (info: {
+    clips: string[];
+    materials: string[];
+    bones: string[];
+    defaults?: Record<string, Partial<MaterialOverride>>;
+  }) => void;
   setKeyframeTimes: (t: number[]) => void;
 
   // playback
@@ -149,10 +154,11 @@ export const useStudio = create<StudioState>((set, get) => ({
   keyframeTimes: [],
   materialNames: [],
   targetBones: [],
-  setRigInfo: ({ clips, materials, bones }) => {
+  setRigInfo: ({ clips, materials, bones, defaults }) => {
     const prev = get().materials;
     const next: Record<string, MaterialOverride> = {};
-    for (const m of materials) next[m] = prev[m] ?? { ...DEFAULT_MATERIAL };
+    for (const m of materials)
+      next[m] = prev[m] ?? { ...DEFAULT_MATERIAL, ...(defaults?.[m] ?? {}) };
     set({
       clipNames: clips,
       materialNames: materials,
