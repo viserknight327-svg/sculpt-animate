@@ -157,6 +157,27 @@ export const useStudio = create<StudioState>((set, get) => ({
       keyframeTimes: [],
     }),
 
+  rigSpec: DEFAULT_RIG_SPEC,
+  buildCustomRig: (patch) => {
+    const spec = { ...get().rigSpec, ...(patch ?? {}) };
+    set({
+      rigSpec: spec,
+      assetKind: "custom",
+      assetName: spec.name,
+      clipNames: [],
+      materialNames: [],
+      materials: {},
+      selectedMaterial: null,
+      activeClip: null,
+      time: 0,
+      duration: 0,
+      keyframeTimes: [],
+    });
+  },
+  updateRigSpec: (patch) =>
+    set((s) => ({ rigSpec: { ...s.rigSpec, ...patch }, assetName: patch.name ?? s.assetName })),
+
+
   clipNames: [],
   keyframeTimes: [],
   materialNames: [],
