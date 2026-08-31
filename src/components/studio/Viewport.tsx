@@ -52,8 +52,10 @@ function MocapDriver({ bones }: { bones: Map<string, THREE.Bone> }) {
   const setMocapInfo = useStudio((s) => s.setMocapInfo);
   const showBones = useStudio((s) => s.viewport.bones);
 
+  const rootBone = result.skeleton.bones[0] as THREE.Bone;
+
   const mixer = useMemo(
-    () => new THREE.AnimationMixer(result.skeleton.bones[0]),
+    () => new THREE.AnimationMixer(rootBone),
     [result],
   );
 
