@@ -132,8 +132,8 @@ const DEFAULT_VIEWPORT: ViewportSettings = {
 };
 
 export const useStudio = create<StudioState>((set, get) => ({
-  assetUrl: SAMPLE_ASSETS[0].url,
-  assetName: SAMPLE_ASSETS[0].name,
+  assetUrl: SAMPLE_ASSETS[0]!.url,
+  assetName: SAMPLE_ASSETS[0]!.name,
   assetKind: "sample",
   loadAsset: (url, name, kind = "sample") =>
     set({
@@ -257,21 +257,22 @@ export const useStudio = create<StudioState>((set, get) => ({
     };
   },
   restore: (data) => {
-    const d = data as Partial<ReturnType<StudioState["snapshot"]>> & Record<string, any>;
+    const d = data as Record<string, unknown>;
     set((s) => ({
-      assetUrl: typeof d.assetUrl === "string" ? d.assetUrl : s.assetUrl,
-      assetName: typeof d.assetName === "string" ? d.assetName : s.assetName,
-      assetKind: typeof d.assetUrl === "string" ? "sample" : s.assetKind,
-      activeClip: (d.activeClip as string) ?? s.activeClip,
-      speed: (d.speed as number) ?? s.speed,
-      loop: (d.loop as boolean) ?? s.loop,
-      fps: (d.fps as number) ?? s.fps,
-      rootMotion: (d.rootMotion as boolean) ?? s.rootMotion,
-      materials: (d.materials as Record<string, MaterialOverride>) ?? s.materials,
-      viewport: { ...s.viewport, ...(d.viewport as object) },
-      mapping: (d.mapping as JointMapping) ?? s.mapping,
-      mocapInfluence: (d.mocapInfluence as number) ?? s.mocapInfluence,
+      assetUrl: typeof d["assetUrl"] === "string" ? (d["assetUrl"] as string) : s.assetUrl,
+      assetName: typeof d["assetName"] === "string" ? (d["assetName"] as string) : s.assetName,
+      assetKind: typeof d["assetUrl"] === "string" ? ("sample" as const) : s.assetKind,
+      activeClip: (d["activeClip"] as string) ?? s.activeClip,
+      speed: (d["speed"] as number) ?? s.speed,
+      loop: (d["loop"] as boolean) ?? s.loop,
+      fps: (d["fps"] as number) ?? s.fps,
+      rootMotion: (d["rootMotion"] as boolean) ?? s.rootMotion,
+      materials: (d["materials"] as Record<string, MaterialOverride>) ?? s.materials,
+      viewport: { ...s.viewport, ...(d["viewport"] as object) },
+      mapping: (d["mapping"] as JointMapping) ?? s.mapping,
+      mocapInfluence: (d["mocapInfluence"] as number) ?? s.mocapInfluence,
       time: 0,
     }));
   },
+
 }));

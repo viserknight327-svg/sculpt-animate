@@ -52,8 +52,10 @@ function MocapDriver({ bones }: { bones: Map<string, THREE.Bone> }) {
   const setMocapInfo = useStudio((s) => s.setMocapInfo);
   const showBones = useStudio((s) => s.viewport.bones);
 
+  const rootBone = result.skeleton.bones[0] as THREE.Bone;
+
   const mixer = useMemo(
-    () => new THREE.AnimationMixer(result.skeleton.bones[0]),
+    () => new THREE.AnimationMixer(rootBone),
     [result],
   );
 
@@ -70,7 +72,7 @@ function MocapDriver({ bones }: { bones: Map<string, THREE.Bone> }) {
   }, [mixer, result, setMocapInfo]);
 
   const helper = useMemo(() => {
-    const h = new THREE.SkeletonHelper(result.skeleton.bones[0]);
+    const h = new THREE.SkeletonHelper(rootBone);
     (h.material as THREE.LineBasicMaterial).depthTest = false;
     return h;
   }, [result]);
@@ -98,7 +100,7 @@ function MocapDriver({ bones }: { bones: Map<string, THREE.Bone> }) {
 
   return (
     <group position={[1.6, 0, 0]} scale={0.011} visible={showBones}>
-      <primitive object={result.skeleton.bones[0]} />
+      <primitive object={rootBone} />
       <primitive object={helper} />
     </group>
   );
@@ -180,6 +182,7 @@ function Rig() {
     const defaults: Record<string, Partial<MaterialOverride>> = {};
     materialMap.forEach((mats, name) => {
       const m = mats[0];
+      if (!m) return;
       defaults[name] = {
         color: `#${m.color.getHexString()}`,
         metalness: m.metalness ?? 0.1,
