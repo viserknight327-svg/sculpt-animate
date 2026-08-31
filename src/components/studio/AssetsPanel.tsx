@@ -56,6 +56,77 @@ export default function AssetsPanel() {
         </button>
       </Section>
 
+      <Section title="Rig builder">
+        <div className="mb-2 grid grid-cols-2 gap-1">
+          {(["biped", "quadruped"] as const).map((p) => (
+            <button
+              key={p}
+              onClick={() => buildCustomRig({ preset: p })}
+              className={`rounded-md border py-1.5 text-[11px] capitalize transition-colors ${
+                custom && rigSpec.preset === p
+                  ? "border-primary/60 bg-primary/10 text-foreground"
+                  : "border-border bg-[var(--panel-raised)] text-muted-foreground hover:border-primary/40"
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+
+        <label className="block">
+          <span className="label-xs">Rig name</span>
+          <input
+            value={rigSpec.name}
+            onChange={(e) => apply({ name: e.target.value })}
+            className="mt-1 mb-2 w-full rounded-md border border-border bg-[var(--panel-raised)] px-2 py-1 text-xs focus:border-primary/60 focus:outline-none"
+          />
+        </label>
+
+        <Num label="Height" value={rigSpec.height} min={0.6} max={3} step={0.05} unit="m" onChange={(v) => apply({ height: v })} />
+        <Num label="Spine joints" value={rigSpec.spineSegments} min={1} max={4} step={1} onChange={(v) => apply({ spineSegments: v })} />
+        <Num label="Neck" value={rigSpec.neckLength} min={0.02} max={0.5} step={0.01} unit="m" onChange={(v) => apply({ neckLength: v })} />
+        <Num label="Head size" value={rigSpec.headSize} min={0.08} max={0.5} step={0.01} unit="m" onChange={(v) => apply({ headSize: v })} />
+        <Num label="Shoulders" value={rigSpec.shoulderWidth} min={0.1} max={0.9} step={0.01} unit="m" onChange={(v) => apply({ shoulderWidth: v })} />
+        <Num label="Arm length" value={rigSpec.armLength} min={0.2} max={1.2} step={0.01} unit="m" onChange={(v) => apply({ armLength: v })} />
+        <Num label="Hip width" value={rigSpec.hipWidth} min={0.08} max={0.8} step={0.01} unit="m" onChange={(v) => apply({ hipWidth: v })} />
+        <Num label="Leg length" value={rigSpec.legLength} min={0.2} max={1.4} step={0.01} unit="m" onChange={(v) => apply({ legLength: v })} />
+        <Num label="Thickness" value={rigSpec.thickness} min={0.02} max={0.25} step={0.005} unit="m" onChange={(v) => apply({ thickness: v })} />
+
+        <label className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+          <span>Tail chain</span>
+          <input
+            type="checkbox"
+            checked={rigSpec.tail}
+            onChange={(e) => apply({ tail: e.target.checked })}
+            className="h-3.5 w-3.5 accent-[var(--primary)]"
+          />
+        </label>
+
+        <div className="mt-3 grid grid-cols-2 gap-1">
+          <button
+            onClick={() => {
+              buildCustomRig();
+              toast.success(`${rigSpec.name} built — Idle / Walk clips generated`);
+            }}
+            className="signal-fill rounded-md py-1.5 text-[11px] font-semibold"
+          >
+            {custom ? "Rebuild rig" : "Build rig"}
+          </button>
+          <button
+            onClick={() => buildCustomRig(DEFAULT_RIG_SPEC)}
+            className="rounded-md border border-border bg-[var(--panel-raised)] py-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+          >
+            Reset
+          </button>
+        </div>
+        <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground/70">
+          Bones are named for retargeting (Hips, Spine, Chest, Neck, Head, UpperArm.L…), so BVH capture
+          maps onto your custom skeleton automatically.
+        </p>
+      </Section>
+
+
+
       <Section title="Mocap library">
         <div className="space-y-1">
           {SAMPLE_MOCAP.map((m) => (
