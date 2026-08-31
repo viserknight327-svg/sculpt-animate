@@ -66,8 +66,8 @@ function scoreBone(joint: CanonicalJoint, bone: string): number {
   if (joint.side && s !== joint.side) return -1;
   if (!joint.side && s) return -1;
   for (let tier = 0; tier < joint.match.length; tier++) {
-    const keys = joint.match[tier];
-    if (keys.every((k) => n.includes(k))) {
+    const keys = joint.match[tier] ?? [];
+    if (keys.length && keys.every((k) => n.includes(k))) {
       // earlier tiers score higher; shorter names win ties
       return 100 - tier * 10 - Math.min(n.length, 30) * 0.1;
     }

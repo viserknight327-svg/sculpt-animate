@@ -136,7 +136,10 @@ export default function TopBar() {
         <button
           onClick={() => {
             const url = captureViewport();
-            if (!url) return toast.error("Viewport not ready");
+            if (!url) {
+              toast.error("Viewport not ready");
+              return;
+            }
             const a = document.createElement("a");
             a.href = url;
             a.download = `${name.replace(/\s+/g, "-").toLowerCase()}.jpg`;

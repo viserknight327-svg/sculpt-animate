@@ -30,7 +30,7 @@ export async function saveScene(input: {
   if (input.id) {
     const { data, error } = await supabase
       .from("studio_scenes")
-      .update({ name: input.name, data: input.data, thumbnail: input.thumbnail })
+      .update({ name: input.name, data: input.data as never, thumbnail: input.thumbnail })
       .eq("id", input.id)
       .select("id,name,thumbnail,data,updated_at")
       .single();
@@ -40,7 +40,7 @@ export async function saveScene(input: {
 
   const { data, error } = await supabase
     .from("studio_scenes")
-    .insert({ user_id: userId, name: input.name, data: input.data, thumbnail: input.thumbnail })
+    .insert({ user_id: userId, name: input.name, data: input.data as never, thumbnail: input.thumbnail })
     .select("id,name,thumbnail,data,updated_at")
     .single();
   if (error) throw error;
