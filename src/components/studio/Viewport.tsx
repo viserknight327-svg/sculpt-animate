@@ -12,6 +12,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { BVHLoader } from "three/examples/jsm/loaders/BVHLoader.js";
 import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { buildRig } from "@/lib/studio/rigbuilder";
 import { useStudio, type MaterialOverride } from "@/lib/studio/store";
 
 const textureCache = new Map<string, THREE.Texture>();
@@ -372,7 +373,7 @@ export default function Viewport() {
       <Canvas
         shadows
         dpr={[1, 2]}
-        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
+        gl={{ antialias: true, preserveDrawingBuffer: true, toneMapping: THREE.ACESFilmicToneMapping }}
         camera={{ position: [2.6, 1.9, 3.4], fov: 38, near: 0.1, far: 100 }}
       >
         <Playhead />
