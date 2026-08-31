@@ -26,7 +26,7 @@ export default function AssetsPanel() {
               key={a.id}
               onClick={() => loadAsset(a.url, a.name, "sample")}
               className={`flex w-full flex-col rounded-md border px-2.5 py-2 text-left transition-colors ${
-                assetUrl === a.url
+                assetUrl === a.url && !custom
                   ? "border-primary/60 bg-primary/10"
                   : "border-border bg-[var(--panel-raised)] hover:border-primary/40"
               }`}
