@@ -1,13 +1,21 @@
 import { useRef } from "react";
 import { toast } from "sonner";
+import { DEFAULT_RIG_SPEC, type RigSpec } from "@/lib/studio/rigbuilder";
 import { SAMPLE_ASSETS, SAMPLE_MOCAP } from "@/lib/studio/samples";
 import { useStudio } from "@/lib/studio/store";
 
 export default function AssetsPanel() {
-  const { assetUrl, loadAsset, loadMocap, mocapName, clipNames, activeClip, setActiveClip, materialNames, selectMaterial, setTab, selectedMaterial } =
+  const { assetUrl, assetKind, loadAsset, loadMocap, mocapName, clipNames, activeClip, setActiveClip, materialNames, selectMaterial, setTab, selectedMaterial, rigSpec, buildCustomRig, updateRigSpec } =
     useStudio();
   const modelInput = useRef<HTMLInputElement>(null);
   const mocapInput = useRef<HTMLInputElement>(null);
+  const custom = assetKind === "custom";
+
+  const apply = (patch: Partial<RigSpec>) => {
+    updateRigSpec(patch);
+    if (custom) buildCustomRig(patch);
+  };
+
 
   return (
     <aside className="panel-surface hairline-r flex w-[268px] shrink-0 flex-col overflow-y-auto">
