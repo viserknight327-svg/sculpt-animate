@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { autoMap, type JointMapping } from "./retarget";
+import { DEFAULT_RIG_SPEC, type RigSpec } from "./rigbuilder";
 import { SAMPLE_ASSETS } from "./samples";
 
 export type MaterialOverride = {
