@@ -106,9 +106,24 @@ function MocapDriver({ bones }: { bones: Map<string, THREE.Bone> }) {
   );
 }
 
-function Rig() {
+function GltfRig() {
   const assetUrl = useStudio((s) => s.assetUrl);
   const { scene, animations } = useGLTF(assetUrl);
+  return <RigBody scene={scene} animations={animations} />;
+}
+
+function ProceduralRig() {
+  const spec = useStudio((s) => s.rigSpec);
+  const built = useMemo(() => buildRig(spec), [spec]);
+  return <RigBody scene={built.root} animations={built.animations} />;
+}
+
+function Rig() {
+  const assetKind = useStudio((s) => s.assetKind);
+  return assetKind === "custom" ? <ProceduralRig /> : <GltfRig />;
+}
+
+function RigBody({ scene, animations }: { scene: THREE.Object3D; animations: THREE.AnimationClip[] }) {
   const setRigInfo = useStudio((s) => s.setRigInfo);
   const setKeyframeTimes = useStudio((s) => s.setKeyframeTimes);
   const materials = useStudio((s) => s.materials);
@@ -118,6 +133,7 @@ function Rig() {
   const rootMotion = useStudio((s) => s.rootMotion);
   const showSkeleton = useStudio((s) => s.viewport.skeleton);
   const [ready, setReady] = useState(false);
+
 
   const model = useMemo(() => {
     const root = skeletonClone(scene) as THREE.Object3D;
