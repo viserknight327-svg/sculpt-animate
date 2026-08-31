@@ -221,3 +221,42 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Empty({ children }: { children: React.ReactNode }) {
   return <p className="px-2 py-1 text-xs text-muted-foreground/70">{children}</p>;
 }
+
+function Num({
+  label,
+  value,
+  min,
+  max,
+  step,
+  unit,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  unit?: string;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <label className="mb-1.5 block">
+      <span className="flex items-center justify-between text-[11px] text-muted-foreground">
+        {label}
+        <span className="num text-foreground">
+          {step >= 1 ? value : value.toFixed(2)}
+          {unit ?? ""}
+        </span>
+      </span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="mt-1 w-full"
+      />
+    </label>
+  );
+}
