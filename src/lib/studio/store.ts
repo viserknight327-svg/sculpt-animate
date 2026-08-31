@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { autoMap, type JointMapping } from "./retarget";
+import { DEFAULT_RIG_SPEC, type RigSpec } from "./rigbuilder";
 import { SAMPLE_ASSETS } from "./samples";
 
 export type MaterialOverride = {
@@ -48,8 +49,14 @@ type StudioState = {
   // asset
   assetUrl: string;
   assetName: string;
-  assetKind: "sample" | "upload";
+  assetKind: "sample" | "upload" | "custom";
   loadAsset: (url: string, name: string, kind?: "sample" | "upload") => void;
+
+  // procedural rig builder
+  rigSpec: RigSpec;
+  buildCustomRig: (spec?: Partial<RigSpec>) => void;
+  updateRigSpec: (patch: Partial<RigSpec>) => void;
+
 
   // rig introspection (published by the viewport)
   clipNames: string[];
@@ -149,6 +156,27 @@ export const useStudio = create<StudioState>((set, get) => ({
       duration: 0,
       keyframeTimes: [],
     }),
+
+  rigSpec: DEFAULT_RIG_SPEC,
+  buildCustomRig: (patch) => {
+    const spec = { ...get().rigSpec, ...(patch ?? {}) };
+    set({
+      rigSpec: spec,
+      assetKind: "custom",
+      assetName: spec.name,
+      clipNames: [],
+      materialNames: [],
+      materials: {},
+      selectedMaterial: null,
+      activeClip: null,
+      time: 0,
+      duration: 0,
+      keyframeTimes: [],
+    });
+  },
+  updateRigSpec: (patch) =>
+    set((s) => ({ rigSpec: { ...s.rigSpec, ...patch }, assetName: patch.name ?? s.assetName })),
+
 
   clipNames: [],
   keyframeTimes: [],

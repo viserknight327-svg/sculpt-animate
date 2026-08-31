@@ -1,24 +1,48 @@
 import { createFileRoute } from "@tanstack/react-router";
+import AssetsPanel from "@/components/studio/AssetsPanel";
+import Inspector from "@/components/studio/Inspector";
+import Timeline from "@/components/studio/Timeline";
+import TopBar from "@/components/studio/TopBar";
+import Viewport from "@/components/studio/Viewport";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
-  component: Index,
+  ssr: false,
+  head: () => ({
+    meta: [
+      { title: "Kinetiq Motion Studio — 3D Rigging, Skinning & Mocap" },
+      {
+        name: "description",
+        content:
+          "Professional browser studio for skeletal animation, procedural rig building, material/skin authoring and BVH motion-capture retargeting.",
+      },
+      { property: "og:title", content: "Kinetiq Motion Studio — 3D Rigging, Skinning & Mocap" },
+      {
+        property: "og:description",
+        content:
+          "Build custom skeletons, animate rigs, author skins and retarget motion capture in the browser.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
+  component: Studio,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
+function Studio() {
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
+    <main className="flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground">
+      <h1 className="sr-only">Kinetiq Motion Studio</h1>
+      <TopBar />
+      <div className="flex min-h-0 flex-1">
+        <AssetsPanel />
+        <section className="flex min-w-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1">
+            <Viewport />
+          </div>
+          <Timeline />
+        </section>
+        <Inspector />
+      </div>
+    </main>
   );
 }
