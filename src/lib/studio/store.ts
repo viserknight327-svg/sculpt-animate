@@ -132,8 +132,8 @@ const DEFAULT_VIEWPORT: ViewportSettings = {
 };
 
 export const useStudio = create<StudioState>((set, get) => ({
-  assetUrl: SAMPLE_ASSETS[0].url,
-  assetName: SAMPLE_ASSETS[0].name,
+  assetUrl: SAMPLE_ASSETS[0]!.url,
+  assetName: SAMPLE_ASSETS[0]!.name,
   assetKind: "sample",
   loadAsset: (url, name, kind = "sample") =>
     set({
