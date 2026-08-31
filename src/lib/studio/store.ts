@@ -48,8 +48,14 @@ type StudioState = {
   // asset
   assetUrl: string;
   assetName: string;
-  assetKind: "sample" | "upload";
+  assetKind: "sample" | "upload" | "custom";
   loadAsset: (url: string, name: string, kind?: "sample" | "upload") => void;
+
+  // procedural rig builder
+  rigSpec: RigSpec;
+  buildCustomRig: (spec?: Partial<RigSpec>) => void;
+  updateRigSpec: (patch: Partial<RigSpec>) => void;
+
 
   // rig introspection (published by the viewport)
   clipNames: string[];
