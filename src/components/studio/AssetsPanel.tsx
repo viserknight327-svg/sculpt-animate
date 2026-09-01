@@ -58,7 +58,7 @@ export default function AssetsPanel() {
 
       <Section title="Rig builder">
         <div className="mb-2 grid grid-cols-2 gap-1">
-          {(["biped", "quadruped"] as const).map((p) => (
+          {(["biped", "quadruped", "avian", "hexapod"] as const).map((p) => (
             <button
               key={p}
               onClick={() => buildCustomRig({ preset: p })}

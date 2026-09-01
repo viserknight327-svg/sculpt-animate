@@ -38,4 +38,28 @@ export const SAMPLE_MOCAP = [
     url: "/mocap/pirouette.bvh",
     note: "43 joints · optical capture",
   },
+  {
+    id: "walk",
+    name: "Walk Cycle",
+    url: "/mocap/walk-cycle.bvh",
+    note: "19 joints · 40f loop · 30fps",
+  },
+  {
+    id: "run",
+    name: "Run Cycle",
+    url: "/mocap/run-cycle.bvh",
+    note: "19 joints · 26f loop · 30fps",
+  },
+  {
+    id: "combat",
+    name: "Combat Idle",
+    url: "/mocap/combat-idle.bvh",
+    note: "19 joints · 60f loop · 30fps",
+  },
+  {
+    id: "jump",
+    name: "Jump Arc",
+    url: "/mocap/jump.bvh",
+    note: "19 joints · 36f one-shot",
+  },
 ];
