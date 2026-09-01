@@ -177,9 +177,16 @@ export default function TopBar() {
                 </button>
                 <button
                   onClick={async () => {
-                    await deleteScene(s.id);
-                    if (sceneId === s.id) setSceneId(null);
-                    refresh();
+                    try {
+                      await deleteScene(s.id);
+                      if (sceneId === s.id) setSceneId(null);
+                      toast.success(`Deleted “${s.name}”`);
+                      refresh();
+                    } catch (error) {
+                      toast.error(
+                        error instanceof Error ? error.message : "Could not delete scene",
+                      );
+                    }
                   }}
                   className="opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
                   title="Delete"
@@ -215,7 +222,14 @@ export default function TopBar() {
               {user.email}
             </span>
             <button
-              onClick={() => signOut()}
+              onClick={async () => {
+                try {
+                  await signOut();
+                  toast.success("Signed out");
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : "Could not sign out");
+                }
+              }}
               className="rounded-md border border-border bg-secondary px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
             >
               Sign out

@@ -63,22 +63,31 @@ function AuthPage() {
   };
 
   const google = async () => {
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-    if (result.error) {
-      toast.error("Google sign-in failed");
-      return;
+    setBusy(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) throw new Error("Google sign-in failed");
+      if (result.redirected) return;
+      navigate({ to: "/" });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Google sign-in failed");
+    } finally {
+      setBusy(false);
     }
-    if (result.redirected) return;
-    navigate({ to: "/" });
   };
 
   return (
-    <main className="grid min-h-screen place-items-center bg-background px-4" style={{ background: "var(--gradient-viewport)" }}>
+    <main
+      className="grid min-h-screen place-items-center bg-background px-4"
+      style={{ background: "var(--gradient-viewport)" }}
+    >
       <div className="w-full max-w-sm rounded-lg border border-border bg-[var(--panel)] p-6 shadow-[var(--shadow-float)]">
         <div className="mb-5 flex items-center gap-2">
-          <span className="signal-fill grid h-7 w-7 place-items-center rounded text-xs font-black">K</span>
+          <span className="signal-fill grid h-7 w-7 place-items-center rounded text-xs font-black">
+            K
+          </span>
           <div>
             <h1 className="text-sm font-semibold tracking-tight">Kinetiq Motion Studio</h1>
             <p className="label-xs">cloud scene library</p>
@@ -87,7 +96,8 @@ function AuthPage() {
 
         <button
           onClick={google}
-          className="mb-4 w-full rounded-md border border-border bg-secondary py-2 text-xs font-medium transition-colors hover:border-primary/50"
+          disabled={busy}
+          className="mb-4 w-full rounded-md border border-border bg-secondary py-2 text-xs font-medium transition-colors hover:border-primary/50 disabled:opacity-60"
         >
           Continue with Google
         </button>

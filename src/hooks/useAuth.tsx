@@ -11,13 +11,25 @@ export function useAuth() {
       setSession(next);
       setLoading(false);
     });
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        setSession(data.session);
+        setLoading(false);
+      })
+      .catch(() => {
+        setSession(null);
+        setLoading(false);
+      });
     return () => sub.subscription.unsubscribe();
   }, []);
 
   const user: User | null = session?.user ?? null;
-  return { session, user, loading, signOut: () => supabase.auth.signOut() };
+  const signOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+    setSession(null);
+  };
+
+  return { session, user, loading, signOut };
 }

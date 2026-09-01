@@ -8,10 +8,19 @@ export type SceneRow = {
   updated_at: string;
 };
 
+async function currentUserId() {
+  const { data, error } = await supabase.auth.getUser();
+  if (error) throw new Error("Your session could not be verified. Please sign in again.");
+  return data.user?.id ?? null;
+}
+
 export async function listScenes(): Promise<SceneRow[]> {
+  const userId = await currentUserId();
+  if (!userId) return [];
   const { data, error } = await supabase
     .from("studio_scenes")
     .select("id,name,thumbnail,data,updated_at")
+    .eq("user_id", userId)
     .order("updated_at", { ascending: false });
   if (error) throw error;
   return (data ?? []) as SceneRow[];
@@ -23,8 +32,7 @@ export async function saveScene(input: {
   data: Record<string, unknown>;
   thumbnail: string | null;
 }) {
-  const { data: userRes } = await supabase.auth.getUser();
-  const userId = userRes.user?.id;
+  const userId = await currentUserId();
   if (!userId) throw new Error("Sign in to save scenes");
 
   if (input.id) {
@@ -32,6 +40,7 @@ export async function saveScene(input: {
       .from("studio_scenes")
       .update({ name: input.name, data: input.data as never, thumbnail: input.thumbnail })
       .eq("id", input.id)
+      .eq("user_id", userId)
       .select("id,name,thumbnail,data,updated_at")
       .single();
     if (error) throw error;
@@ -40,7 +49,12 @@ export async function saveScene(input: {
 
   const { data, error } = await supabase
     .from("studio_scenes")
-    .insert({ user_id: userId, name: input.name, data: input.data as never, thumbnail: input.thumbnail })
+    .insert({
+      user_id: userId,
+      name: input.name,
+      data: input.data as never,
+      thumbnail: input.thumbnail,
+    })
     .select("id,name,thumbnail,data,updated_at")
     .single();
   if (error) throw error;
@@ -48,7 +62,13 @@ export async function saveScene(input: {
 }
 
 export async function deleteScene(id: string) {
-  const { error } = await supabase.from("studio_scenes").delete().eq("id", id);
+  const userId = await currentUserId();
+  if (!userId) throw new Error("Sign in to delete scenes");
+  const { error } = await supabase
+    .from("studio_scenes")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId);
   if (error) throw error;
 }
 

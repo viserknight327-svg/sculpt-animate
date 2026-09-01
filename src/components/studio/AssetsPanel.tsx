@@ -47,11 +47,26 @@ export default function AssetsPanel() {
       setRecording(false);
       return;
     }
+    if (
+      typeof window === "undefined" ||
+      !window.isSecureContext ||
+      !navigator.mediaDevices?.getUserMedia
+    ) {
+      toast.error("Camera capture requires HTTPS or localhost in a supported browser");
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       setCameraStream(stream);
-    } catch {
-      toast.error("Camera access was not granted");
+    } catch (error) {
+      const name = error instanceof DOMException ? error.name : "";
+      toast.error(
+        name === "NotAllowedError"
+          ? "Camera permission was denied — allow camera access and try again"
+          : name === "NotFoundError"
+            ? "No camera was found on this device"
+            : "Camera access could not be started",
+      );
     }
   };
 
@@ -62,8 +77,15 @@ export default function AssetsPanel() {
       setRecording(false);
       return;
     }
+    if (typeof MediaRecorder === "undefined") {
+      toast.error("This browser cannot record camera references");
+      return;
+    }
     chunksRef.current = [];
-    const recorder = new MediaRecorder(cameraStream, { mimeType: "video/webm" });
+    const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+      ? "video/webm;codecs=vp9"
+      : "video/webm";
+    const recorder = new MediaRecorder(cameraStream, { mimeType });
     recorder.ondataavailable = (event) => event.data.size && chunksRef.current.push(event.data);
     recorder.onstop = () => {
       if (recordedUrl) URL.revokeObjectURL(recordedUrl);
