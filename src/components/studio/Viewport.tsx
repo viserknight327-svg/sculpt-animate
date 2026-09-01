@@ -170,6 +170,7 @@ function RigBody({ scene, animations }: { scene: THREE.Object3D; animations: THR
     const dist = h * 2.1;
     camera.position.set(dist * 0.62, h * 0.95, dist * 0.82);
     camera.lookAt(0, h * 0.5, 0);
+    (globalThis as any).__framed = { pos: camera.position.toArray(), hasControls: !!controls };
     const c = controls as unknown as { target?: THREE.Vector3; update?: () => void } | null;
     if (c?.target) {
       c.target.set(0, h * 0.5, 0);
@@ -305,6 +306,7 @@ function RigBody({ scene, animations }: { scene: THREE.Object3D; animations: THR
     // keep the character centered by zeroing horizontal root translation
   }, [rootMotion]);
 
+  (globalThis as any).__rigRender = ((globalThis as any).__rigRender ?? 0) + 1;
   return (
     <group position={[0, fit.y, 0]} scale={fit.scale}>
       <primitive object={model} />
