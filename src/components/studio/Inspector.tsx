@@ -580,6 +580,30 @@ function SkinTab() {
         </button>
         {mat.mapUrl && (
           <>
+            {(
+              [
+                ["normalMapUrl", "Normal map"],
+                ["roughnessMapUrl", "Roughness map"],
+                ["metalnessMapUrl", "Metalness map"],
+                ["aoMapUrl", "AO map"],
+              ] as const
+            ).map(([field, label]) => (
+              <label
+                key={field}
+                className="mt-1 flex items-center justify-between gap-2 text-[10px] text-muted-foreground"
+              >
+                <span>{label}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="max-w-[150px] text-[9px]"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) updateMaterial(name, { [field]: URL.createObjectURL(file) });
+                  }}
+                />
+              </label>
+            ))}
             <Row label="Tiling">
               <Slider
                 value={mat.repeat}

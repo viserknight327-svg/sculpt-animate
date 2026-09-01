@@ -14,6 +14,10 @@ export type MaterialOverride = {
   flatShading: boolean;
   mapUrl: string | null;
   mapName: string | null;
+  normalMapUrl: string | null;
+  roughnessMapUrl: string | null;
+  metalnessMapUrl: string | null;
+  aoMapUrl: string | null;
   repeat: number;
   offsetX: number;
   offsetY: number;
@@ -31,6 +35,10 @@ export const DEFAULT_MATERIAL: MaterialOverride = {
   flatShading: false,
   mapUrl: null,
   mapName: null,
+  normalMapUrl: null,
+  roughnessMapUrl: null,
+  metalnessMapUrl: null,
+  aoMapUrl: null,
   repeat: 1,
   offsetX: 0,
   offsetY: 0,

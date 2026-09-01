@@ -301,15 +301,21 @@ function RigBody({
         m.transparent = o.opacity < 1;
         m.wireframe = o.wireframe;
         m.flatShading = o.flatShading;
-        const tex = o.mapUrl ? getTexture(o.mapUrl) : null;
-        if (tex) {
+        const configureTexture = (url: string | null) => {
+          if (!url) return null;
+          const tex = getTexture(url);
           tex.repeat.set(o.repeat, o.repeat);
           tex.offset.set(o.offsetX, o.offsetY);
           tex.rotation = o.rotation;
           tex.center.set(0.5, 0.5);
           tex.needsUpdate = true;
-        }
-        m.map = tex;
+          return tex;
+        };
+        m.map = configureTexture(o.mapUrl);
+        m.normalMap = configureTexture(o.normalMapUrl);
+        m.roughnessMap = configureTexture(o.roughnessMapUrl);
+        m.metalnessMap = configureTexture(o.metalnessMapUrl);
+        m.aoMap = configureTexture(o.aoMapUrl);
         m.needsUpdate = true;
       });
     });
