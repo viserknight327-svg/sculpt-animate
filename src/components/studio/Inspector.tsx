@@ -58,7 +58,14 @@ function AnimateTab() {
           ))}
         </select>
         <Row label="Playback">
-          <Slider value={s.speed} onChange={s.setSpeed} min={0.05} max={2.5} step={0.05} suffix="×" />
+          <Slider
+            value={s.speed}
+            onChange={s.setSpeed}
+            min={0.05}
+            max={2.5}
+            step={0.05}
+            suffix="×"
+          />
         </Row>
         <Row label="Frame rate">
           <select
@@ -102,23 +109,55 @@ function AnimateTab() {
 
       <Panel title="Stage">
         <Row label="Key light">
-          <Slider value={s.viewport.keyLight} onChange={(v) => s.setViewport({ keyLight: v })} max={6} />
+          <Slider
+            value={s.viewport.keyLight}
+            onChange={(v) => s.setViewport({ keyLight: v })}
+            max={6}
+          />
         </Row>
         <Row label="Fill">
-          <Slider value={s.viewport.fillLight} onChange={(v) => s.setViewport({ fillLight: v })} max={3} />
+          <Slider
+            value={s.viewport.fillLight}
+            onChange={(v) => s.setViewport({ fillLight: v })}
+            max={3}
+          />
         </Row>
         <Row label="Rim">
-          <Slider value={s.viewport.rimLight} onChange={(v) => s.setViewport({ rimLight: v })} max={5} />
+          <Slider
+            value={s.viewport.rimLight}
+            onChange={(v) => s.setViewport({ rimLight: v })}
+            max={5}
+          />
         </Row>
         <Row label="Exposure">
-          <Slider value={s.viewport.exposure} onChange={(v) => s.setViewport({ exposure: v })} min={0.2} max={2.5} />
+          <Slider
+            value={s.viewport.exposure}
+            onChange={(v) => s.setViewport({ exposure: v })}
+            min={0.2}
+            max={2.5}
+          />
         </Row>
         <Row label="Lens">
-          <Slider value={s.viewport.fov} onChange={(v) => s.setViewport({ fov: v })} min={18} max={80} step={1} suffix="°" />
+          <Slider
+            value={s.viewport.fov}
+            onChange={(v) => s.setViewport({ fov: v })}
+            min={18}
+            max={80}
+            step={1}
+            suffix="°"
+          />
         </Row>
         <Row label="Ground">
-          <Toggle label="grid" value={s.viewport.grid} onChange={(v) => s.setViewport({ grid: v })} />
-          <Toggle label="floor" value={s.viewport.floor} onChange={(v) => s.setViewport({ floor: v })} />
+          <Toggle
+            label="grid"
+            value={s.viewport.grid}
+            onChange={(v) => s.setViewport({ grid: v })}
+          />
+          <Toggle
+            label="floor"
+            value={s.viewport.floor}
+            onChange={(v) => s.setViewport({ floor: v })}
+          />
         </Row>
       </Panel>
     </>
@@ -126,7 +165,14 @@ function AnimateTab() {
 }
 
 function SkinTab() {
-  const { materialNames, selectedMaterial, selectMaterial, materials, updateMaterial, resetMaterial } = useStudio();
+  const {
+    materialNames,
+    selectedMaterial,
+    selectMaterial,
+    materials,
+    updateMaterial,
+    resetMaterial,
+  } = useStudio();
   const texInput = useRef<HTMLInputElement>(null);
   const name = selectedMaterial;
   const mat = name ? (materials[name] ?? DEFAULT_MATERIAL) : null;
@@ -201,7 +247,13 @@ function SkinTab() {
         {mat.mapUrl && (
           <>
             <Row label="Tiling">
-              <Slider value={mat.repeat} onChange={(v) => updateMaterial(name, { repeat: v })} min={0.25} max={8} step={0.25} />
+              <Slider
+                value={mat.repeat}
+                onChange={(v) => updateMaterial(name, { repeat: v })}
+                min={0.25}
+                max={8}
+                step={0.25}
+              />
             </Row>
             <button
               onClick={() => updateMaterial(name, { mapUrl: null, mapName: null })}
@@ -215,8 +267,16 @@ function SkinTab() {
 
       <Panel title="Display">
         <Row label="Modes">
-          <Toggle label="wireframe" value={mat.wireframe} onChange={(v) => updateMaterial(name, { wireframe: v })} />
-          <Toggle label="flat" value={mat.flatShading} onChange={(v) => updateMaterial(name, { flatShading: v })} />
+          <Toggle
+            label="wireframe"
+            value={mat.wireframe}
+            onChange={(v) => updateMaterial(name, { wireframe: v })}
+          />
+          <Toggle
+            label="flat"
+            value={mat.flatShading}
+            onChange={(v) => updateMaterial(name, { flatShading: v })}
+          />
         </Row>
         <button
           onClick={() => resetMaterial(name)}
@@ -235,8 +295,8 @@ function MocapTab() {
   if (!s.mocapUrl) {
     return (
       <p className="p-4 text-xs text-muted-foreground">
-        Load a capture from the mocap library, or import a <span className="num">.bvh</span> file to drive this
-        rig.
+        Load a capture from the mocap library, or import a <span className="num">.bvh</span> file to
+        drive this rig.
       </p>
     );
   }
@@ -254,11 +314,38 @@ function MocapTab() {
           <span className="num text-xs">{s.mocapDuration.toFixed(2)}s</span>
         </Row>
         <Row label="Drive rig">
-          <Toggle label={s.mocapEnabled ? "on" : "off"} value={s.mocapEnabled} onChange={s.setMocapEnabled} />
+          <Toggle
+            label={s.mocapEnabled ? "on" : "off"}
+            value={s.mocapEnabled}
+            onChange={s.setMocapEnabled}
+          />
         </Row>
         <Row label="Influence">
           <Slider value={s.mocapInfluence} onChange={s.setMocapInfluence} />
         </Row>
+        <Row label="Time offset">
+          <Slider
+            value={s.mocapOffset}
+            onChange={s.setMocapOffset}
+            min={-1}
+            max={1}
+            step={0.01}
+            suffix="s"
+          />
+        </Row>
+        <Row label="Smoothing">
+          <Slider
+            value={s.mocapSmoothing}
+            onChange={s.setMocapSmoothing}
+            min={0}
+            max={0.9}
+            step={0.05}
+          />
+        </Row>
+        <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground/70">
+          Offset aligns a capture to the timeline. Smoothing reduces jitter while preserving the
+          retargeted pose.
+        </p>
         <button
           onClick={s.clearMocap}
           className="mt-1 w-full rounded-md border border-border bg-secondary py-1.5 text-xs text-muted-foreground hover:text-foreground"
@@ -279,7 +366,10 @@ function MocapTab() {
             const m = s.mapping[j.key] ?? { source: null, target: null };
             const complete = m.source && m.target;
             return (
-              <div key={j.key} className="rounded-md border border-border bg-[var(--panel-raised)] p-1.5">
+              <div
+                key={j.key}
+                className="rounded-md border border-border bg-[var(--panel-raised)] p-1.5"
+              >
                 <div className="mb-1 flex items-center gap-2">
                   <span
                     className={`h-1.5 w-1.5 rounded-full ${complete ? "bg-[var(--data)]" : "bg-muted-foreground/40"}`}

@@ -44,6 +44,7 @@ export type ViewportSettings = {
 };
 
 export type StudioTab = "animate" | "skin" | "mocap";
+export type ToolMode = "select" | "translate" | "rotate" | "scale";
 
 type StudioState = {
   // asset
@@ -56,7 +57,6 @@ type StudioState = {
   rigSpec: RigSpec;
   buildCustomRig: (spec?: Partial<RigSpec>) => void;
   updateRigSpec: (patch: Partial<RigSpec>) => void;
-
 
   // rig introspection (published by the viewport)
   clipNames: string[];
@@ -101,6 +101,17 @@ type StudioState = {
   viewport: ViewportSettings;
   setViewport: (patch: Partial<ViewportSettings>) => void;
 
+  // Blender-style viewport tools
+  toolMode: ToolMode;
+  setToolMode: (mode: ToolMode) => void;
+  resetTransform: () => void;
+  setObjectTransform: (patch: Partial<StudioState["objectTransform"]>) => void;
+  objectTransform: {
+    position: [number, number, number];
+    rotation: [number, number, number];
+    scale: [number, number, number];
+  };
+
   // mocap
   mocapUrl: string | null;
   mocapName: string | null;
@@ -109,6 +120,10 @@ type StudioState = {
   sourceBones: string[];
   mapping: JointMapping;
   mocapInfluence: number;
+  mocapSmoothing: number;
+  setMocapSmoothing: (v: number) => void;
+  mocapOffset: number;
+  setMocapOffset: (v: number) => void;
   loadMocap: (url: string, name: string) => void;
   clearMocap: () => void;
   setMocapEnabled: (v: boolean) => void;
@@ -177,7 +192,6 @@ export const useStudio = create<StudioState>((set, get) => ({
   updateRigSpec: (patch) =>
     set((s) => ({ rigSpec: { ...s.rigSpec, ...patch }, assetName: patch.name ?? s.assetName })),
 
-
   clipNames: [],
   keyframeTimes: [],
   materialNames: [],
@@ -192,8 +206,14 @@ export const useStudio = create<StudioState>((set, get) => ({
       materialNames: materials,
       targetBones: bones,
       materials: next,
-      selectedMaterial: get().selectedMaterial && materials.includes(get().selectedMaterial!) ? get().selectedMaterial : (materials[0] ?? null),
-      activeClip: get().activeClip && clips.includes(get().activeClip!) ? get().activeClip : (clips[0] ?? null),
+      selectedMaterial:
+        get().selectedMaterial && materials.includes(get().selectedMaterial!)
+          ? get().selectedMaterial
+          : (materials[0] ?? null),
+      activeClip:
+        get().activeClip && clips.includes(get().activeClip!)
+          ? get().activeClip
+          : (clips[0] ?? null),
     });
     const { sourceBones } = get();
     if (sourceBones.length) set({ mapping: autoMap(sourceBones, bones) });
@@ -240,7 +260,23 @@ export const useStudio = create<StudioState>((set, get) => ({
   mocapDuration: 0,
   sourceBones: [],
   mapping: {},
+  toolMode: "select",
+  setToolMode: (toolMode) => set({ toolMode }),
+  objectTransform: {
+    position: [0, 0, 0],
+    rotation: [0, 0, 0],
+    scale: [1, 1, 1],
+  },
+  resetTransform: () =>
+    set({ objectTransform: { position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] } }),
+  setObjectTransform: (patch) =>
+    set((s) => ({ objectTransform: { ...s.objectTransform, ...patch } })),
+
   mocapInfluence: 1,
+  mocapSmoothing: 0.15,
+  setMocapSmoothing: (mocapSmoothing) => set({ mocapSmoothing }),
+  mocapOffset: 0,
+  setMocapOffset: (mocapOffset) => set({ mocapOffset }),
   loadMocap: (url, name) => set({ mocapUrl: url, mocapName: name, mocapEnabled: true, time: 0 }),
   clearMocap: () =>
     set({
@@ -253,7 +289,11 @@ export const useStudio = create<StudioState>((set, get) => ({
     }),
   setMocapEnabled: (mocapEnabled) => set({ mocapEnabled }),
   setMocapInfo: ({ bones, duration }) =>
-    set({ sourceBones: bones, mocapDuration: duration, mapping: autoMap(bones, get().targetBones) }),
+    set({
+      sourceBones: bones,
+      mocapDuration: duration,
+      mapping: autoMap(bones, get().targetBones),
+    }),
   setMapping: (key, part, bone) =>
     set((s) => ({
       mapping: {
@@ -282,6 +322,9 @@ export const useStudio = create<StudioState>((set, get) => ({
       viewport: s.viewport,
       mapping: s.mapping,
       mocapInfluence: s.mocapInfluence,
+      mocapSmoothing: s.mocapSmoothing,
+      mocapOffset: s.mocapOffset,
+      objectTransform: s.objectTransform,
     };
   },
   restore: (data) => {
@@ -299,8 +342,11 @@ export const useStudio = create<StudioState>((set, get) => ({
       viewport: { ...s.viewport, ...(d["viewport"] as object) },
       mapping: (d["mapping"] as JointMapping) ?? s.mapping,
       mocapInfluence: (d["mocapInfluence"] as number) ?? s.mocapInfluence,
+      mocapSmoothing: (d["mocapSmoothing"] as number) ?? s.mocapSmoothing,
+      mocapOffset: (d["mocapOffset"] as number) ?? s.mocapOffset,
+      objectTransform:
+        (d["objectTransform"] as StudioState["objectTransform"]) ?? s.objectTransform,
       time: 0,
     }));
   },
-
 }));

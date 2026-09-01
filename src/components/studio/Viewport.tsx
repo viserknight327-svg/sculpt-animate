@@ -5,6 +5,7 @@ import {
   Grid,
   Lightformer,
   OrbitControls,
+  TransformControls,
   useGLTF,
 } from "@react-three/drei";
 import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
@@ -52,13 +53,11 @@ function MocapDriver({ bones }: { bones: Map<string, THREE.Bone> }) {
   const result = useLoader(BVHLoader, url);
   const setMocapInfo = useStudio((s) => s.setMocapInfo);
   const showBones = useStudio((s) => s.viewport.bones);
+  const smoothed = useRef(new Map<string, THREE.Quaternion>());
 
   const rootBone = result.skeleton.bones[0] as THREE.Bone;
 
-  const mixer = useMemo(
-    () => new THREE.AnimationMixer(rootBone),
-    [result],
-  );
+  const mixer = useMemo(() => new THREE.AnimationMixer(rootBone), [rootBone]);
 
   useEffect(() => {
     const action = mixer.clipAction(result.clip);
@@ -76,7 +75,7 @@ function MocapDriver({ bones }: { bones: Map<string, THREE.Bone> }) {
     const h = new THREE.SkeletonHelper(rootBone);
     (h.material as THREE.LineBasicMaterial).depthTest = false;
     return h;
-  }, [result]);
+  }, [rootBone]);
 
   const sourceMap = useMemo(() => {
     const m = new Map<string, THREE.Bone>();
@@ -87,15 +86,19 @@ function MocapDriver({ bones }: { bones: Map<string, THREE.Bone> }) {
   useFrame(() => {
     const s = useStudio.getState();
     if (!s.mocapEnabled) return;
-    mixer.setTime(Math.min(s.time, result.clip.duration));
+    const captureTime = Math.max(0, Math.min(s.time + s.mocapOffset, result.clip.duration));
+    mixer.setTime(captureTime);
     const influence = s.mocapInfluence;
     for (const joint of Object.values(s.mapping)) {
       if (!joint?.source || !joint?.target) continue;
       const src = sourceMap.get(joint.source);
       const dst = bones.get(joint.target);
       if (!src || !dst) continue;
-      if (influence >= 0.999) dst.quaternion.copy(src.quaternion);
-      else dst.quaternion.slerp(src.quaternion, influence);
+      const previous = smoothed.current.get(joint.target) ?? dst.quaternion.clone();
+      previous.slerp(src.quaternion, Math.max(0.05, 1 - s.mocapSmoothing));
+      smoothed.current.set(joint.target, previous);
+      if (influence >= 0.999) dst.quaternion.copy(previous);
+      else dst.quaternion.slerp(previous, influence);
     }
   }, 1);
 
@@ -124,7 +127,13 @@ function Rig() {
   return assetKind === "custom" ? <ProceduralRig /> : <GltfRig />;
 }
 
-function RigBody({ scene, animations }: { scene: THREE.Object3D; animations: THREE.AnimationClip[] }) {
+function RigBody({
+  scene,
+  animations,
+}: {
+  scene: THREE.Object3D;
+  animations: THREE.AnimationClip[];
+}) {
   const setRigInfo = useStudio((s) => s.setRigInfo);
   const setKeyframeTimes = useStudio((s) => s.setKeyframeTimes);
   const materials = useStudio((s) => s.materials);
@@ -133,8 +142,19 @@ function RigBody({ scene, animations }: { scene: THREE.Object3D; animations: THR
   const mocapUrl = useStudio((s) => s.mocapUrl);
   const rootMotion = useStudio((s) => s.rootMotion);
   const showSkeleton = useStudio((s) => s.viewport.skeleton);
+  const toolMode = useStudio((s) => s.toolMode);
+  const objectTransform = useStudio((s) => s.objectTransform);
+  const setObjectTransform = useStudio((s) => s.setObjectTransform);
   const [ready, setReady] = useState(false);
+  const groupRef = useRef<THREE.Group>(null);
 
+  useEffect(() => {
+    const group = groupRef.current;
+    if (!group) return;
+    group.position.set(...objectTransform.position);
+    group.rotation.set(...objectTransform.rotation);
+    group.scale.set(...objectTransform.scale);
+  }, [objectTransform]);
 
   const model = useMemo(() => {
     const root = skeletonClone(scene) as THREE.Object3D;
@@ -159,7 +179,6 @@ function RigBody({ scene, animations }: { scene: THREE.Object3D; animations: THR
     box.getSize(size);
     const height = Math.max(size.y, size.z, size.x, 0.0001);
     const scale = 1.75 / height;
-    (globalThis as any).__fit = { size: size.toArray(), min: box.min.toArray(), scale };
     return { scale, y: -box.min.y * scale, height: 1.75 };
   }, [model]);
 
@@ -170,14 +189,12 @@ function RigBody({ scene, animations }: { scene: THREE.Object3D; animations: THR
     const dist = h * 2.1;
     camera.position.set(dist * 0.62, h * 0.95, dist * 0.82);
     camera.lookAt(0, h * 0.5, 0);
-    (globalThis as any).__framed = { pos: camera.position.toArray(), hasControls: !!controls };
     const c = controls as unknown as { target?: THREE.Vector3; update?: () => void } | null;
     if (c?.target) {
       c.target.set(0, h * 0.5, 0);
       c.update?.();
     }
   }, [camera, controls, fit]);
-
 
   const materialMap = useMemo(() => {
     const map = new Map<string, THREE.MeshStandardMaterial[]>();
@@ -238,7 +255,9 @@ function RigBody({ scene, animations }: { scene: THREE.Object3D; animations: THR
     mixer.stopAllAction();
     const clip = animations.find((a) => a.name === activeClip);
     if (!clip) {
-      useStudio.getState().setDuration(useStudio.getState().mocapEnabled ? useStudio.getState().mocapDuration : 0);
+      useStudio
+        .getState()
+        .setDuration(useStudio.getState().mocapEnabled ? useStudio.getState().mocapDuration : 0);
       setKeyframeTimes([]);
       return;
     }
@@ -293,7 +312,6 @@ function RigBody({ scene, animations }: { scene: THREE.Object3D; animations: THR
 
   useFrame(({ camera: cam }) => {
     const s = useStudio.getState();
-    (globalThis as any).__cam = { pos: cam.position.toArray(), fov: (cam as THREE.PerspectiveCamera).fov };
     mixer.setTime(Math.max(s.time, 0.0001));
     if (!s.rootMotion) {
       const hips = model.children[0];
@@ -306,18 +324,79 @@ function RigBody({ scene, animations }: { scene: THREE.Object3D; animations: THR
     // keep the character centered by zeroing horizontal root translation
   }, [rootMotion]);
 
-  (globalThis as any).__rigRender = ((globalThis as any).__rigRender ?? 0) + 1;
-  return (
-    <group position={[0, fit.y, 0]} scale={fit.scale}>
-      <primitive object={model} />
-      {showSkeleton && <primitive object={skeletonHelper} />}
-      {ready && mocapUrl && (
-        <Suspense fallback={null}>
-          <MocapDriver bones={boneMap} />
-        </Suspense>
-      )}
+  const body = (
+    <group
+      ref={groupRef}
+      position={objectTransform.position}
+      rotation={objectTransform.rotation}
+      scale={objectTransform.scale}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <group position={[0, fit.y, 0]} scale={fit.scale}>
+        <primitive object={model} />
+        {showSkeleton && <primitive object={skeletonHelper} />}
+        {ready && mocapUrl && (
+          <Suspense fallback={null}>
+            <MocapDriver bones={boneMap} />
+          </Suspense>
+        )}
+      </group>
     </group>
   );
+
+  if (toolMode === "select") return body;
+  return (
+    <TransformControls
+      mode={toolMode}
+      onObjectChange={() => {
+        const group = groupRef.current;
+        if (!group) return;
+        setObjectTransform({
+          position: group.position.toArray() as [number, number, number],
+          rotation: [group.rotation.x, group.rotation.y, group.rotation.z],
+          scale: group.scale.toArray() as [number, number, number],
+        });
+      }}
+    >
+      {body}
+    </TransformControls>
+  );
+}
+
+function CameraShortcuts() {
+  const { camera, controls } = useThree();
+
+  useEffect(() => {
+    const focus = new THREE.Vector3(0, 0.9, 0);
+    const setView = (view: "front" | "side" | "top" | "perspective") => {
+      const distance = view === "top" ? 4.2 : 3.7;
+      if (view === "front") camera.position.set(0, 1.05, distance);
+      if (view === "side") camera.position.set(distance, 1.05, 0);
+      if (view === "top") camera.position.set(0, distance, 0.01);
+      if (view === "perspective") camera.position.set(2.6, 1.9, 3.4);
+      camera.lookAt(focus);
+      const orbit = controls as unknown as { target?: THREE.Vector3; update?: () => void } | null;
+      orbit?.target?.copy(focus);
+      orbit?.update?.();
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLSelectElement ||
+        event.target instanceof HTMLTextAreaElement
+      )
+        return;
+      if (event.key === "1") setView("front");
+      if (event.key === "3") setView("side");
+      if (event.key === "7") setView("top");
+      if (event.key === "5") setView("perspective");
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [camera, controls]);
+
+  return null;
 }
 
 function Stage() {
@@ -354,9 +433,26 @@ function Stage() {
       <directionalLight position={[-5, 3, -6]} intensity={vp.rimLight} color="#7fd8ff" />
 
       <Environment resolution={128}>
-        <Lightformer intensity={2.2} position={[0, 6, 0]} scale={[12, 12, 1]} rotation-x={Math.PI / 2} />
-        <Lightformer intensity={1.1} color="#8ab6d6" position={[-6, 2, -2]} rotation-y={Math.PI / 2} scale={[16, 3, 1]} />
-        <Lightformer intensity={0.8} color="#e0a06a" position={[6, 2, 2]} rotation-y={-Math.PI / 2} scale={[16, 3, 1]} />
+        <Lightformer
+          intensity={2.2}
+          position={[0, 6, 0]}
+          scale={[12, 12, 1]}
+          rotation-x={Math.PI / 2}
+        />
+        <Lightformer
+          intensity={1.1}
+          color="#8ab6d6"
+          position={[-6, 2, -2]}
+          rotation-y={Math.PI / 2}
+          scale={[16, 3, 1]}
+        />
+        <Lightformer
+          intensity={0.8}
+          color="#e0a06a"
+          position={[6, 2, 2]}
+          rotation-y={-Math.PI / 2}
+          scale={[16, 3, 1]}
+        />
       </Environment>
 
       {vp.floor && (
@@ -387,18 +483,77 @@ function Stage() {
 
 export default function Viewport() {
   const ref = useRef<HTMLDivElement>(null);
+  const toolMode = useStudio((s) => s.toolMode);
+  const setToolMode = useStudio((s) => s.setToolMode);
+  const resetTransform = useStudio((s) => s.resetTransform);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLSelectElement ||
+        event.target instanceof HTMLTextAreaElement
+      )
+        return;
+      if (event.key === " ") {
+        event.preventDefault();
+        useStudio.getState().togglePlay();
+      }
+      if (event.key === "w") setToolMode("translate");
+      if (event.key === "e") setToolMode("rotate");
+      if (event.key === "r") setToolMode("scale");
+      if (event.key === "q") setToolMode("select");
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [setToolMode]);
 
   return (
-    <div ref={ref} className="relative h-full w-full" style={{ background: "var(--gradient-viewport)" }}>
+    <div
+      ref={ref}
+      className="relative h-full w-full"
+      style={{ background: "var(--gradient-viewport)" }}
+    >
+      <div className="absolute left-3 top-3 z-10 flex items-center gap-1 rounded-md border border-border bg-[var(--panel)]/90 p-1 shadow-[var(--shadow-float)] backdrop-blur">
+        {(
+          [
+            ["select", "Q", "Select"],
+            ["translate", "W", "Move"],
+            ["rotate", "E", "Rotate"],
+            ["scale", "R", "Scale"],
+          ] as const
+        ).map(([mode, key, label]) => (
+          <button
+            key={mode}
+            onClick={() => setToolMode(mode)}
+            title={`${label} (${key})`}
+            className={`rounded px-2 py-1 text-[10px] transition-colors ${toolMode === mode ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}
+          >
+            {key} {label}
+          </button>
+        ))}
+        <button
+          onClick={resetTransform}
+          title="Reset transform"
+          className="ml-1 rounded px-2 py-1 text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground"
+        >
+          Reset
+        </button>
+      </div>
       <Canvas
         shadows
         dpr={[1, 2]}
-        gl={{ antialias: true, preserveDrawingBuffer: true, toneMapping: THREE.ACESFilmicToneMapping }}
+        gl={{
+          antialias: true,
+          preserveDrawingBuffer: true,
+          toneMapping: THREE.ACESFilmicToneMapping,
+        }}
         camera={{ position: [2.6, 1.9, 3.4], fov: 38, near: 0.1, far: 100 }}
       >
         <Playhead />
         <Suspense fallback={null}>
           <Stage />
+          <CameraShortcuts />
           <Rig />
         </Suspense>
         <OrbitControls

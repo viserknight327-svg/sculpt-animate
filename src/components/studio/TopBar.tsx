@@ -1,8 +1,14 @@
 import { Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { captureViewport, deleteScene, listScenes, saveScene, type SceneRow } from "@/lib/studio/scenes";
+import {
+  captureViewport,
+  deleteScene,
+  listScenes,
+  saveScene,
+  type SceneRow,
+} from "@/lib/studio/scenes";
 import { useStudio } from "@/lib/studio/store";
 
 export default function TopBar() {
@@ -14,6 +20,7 @@ export default function TopBar() {
   const [scenes, setScenes] = useState<SceneRow[]>([]);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const importInput = useRef<HTMLInputElement>(null);
 
   const refresh = () => {
     if (!user) return;
@@ -51,10 +58,25 @@ export default function TopBar() {
     }
   };
 
+  const exportProject = () => {
+    const blob = new Blob([JSON.stringify({ name, ...snapshot() }, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${name.replace(/\s+/g, "-").toLowerCase() || "kinetiq-project"}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Project settings exported");
+  };
+
   return (
     <header className="hairline-b flex h-12 shrink-0 items-center gap-3 bg-[var(--header)] px-3">
       <div className="flex items-center gap-2">
-        <span className="signal-fill grid h-6 w-6 place-items-center rounded text-[11px] font-black">K</span>
+        <span className="signal-fill grid h-6 w-6 place-items-center rounded text-[11px] font-black">
+          K
+        </span>
         <span className="text-sm font-semibold tracking-tight">KINETIQ</span>
         <span className="label-xs hidden sm:inline">motion studio</span>
       </div>
@@ -77,6 +99,42 @@ export default function TopBar() {
 
       <div className="relative">
         <button
+          onClick={exportProject}
+          className="rounded-md border border-border bg-secondary px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
+          Export project
+        </button>
+        <input
+          ref={importInput}
+          type="file"
+          accept=".json,application/json"
+          className="hidden"
+          onChange={async (event) => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            try {
+              const data = JSON.parse(await file.text()) as Record<string, unknown>;
+              restore(data);
+              if (typeof data.name === "string") setName(data.name);
+              setSceneId(null);
+              toast.success(`Imported ${file.name}`);
+            } catch {
+              toast.error("Could not read that project file");
+            } finally {
+              event.target.value = "";
+            }
+          }}
+        />
+        <button
+          onClick={() => importInput.current?.click()}
+          className="rounded-md border border-border bg-secondary px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
+          Import project
+        </button>
+      </div>
+
+      <div className="relative">
+        <button
           onClick={() => {
             setOpen((v) => !v);
             refresh();
@@ -87,7 +145,9 @@ export default function TopBar() {
         </button>
         {open && (
           <div className="absolute left-0 top-9 z-40 max-h-[60vh] w-72 overflow-y-auto rounded-md border border-border bg-[var(--panel)] p-1.5 shadow-[var(--shadow-float)]">
-            {!user && <p className="p-2 text-xs text-muted-foreground">Sign in to keep a scene library.</p>}
+            {!user && (
+              <p className="p-2 text-xs text-muted-foreground">Sign in to keep a scene library.</p>
+            )}
             {user && scenes.length === 0 && (
               <p className="p-2 text-xs text-muted-foreground">No saved scenes yet.</p>
             )}
@@ -162,10 +222,7 @@ export default function TopBar() {
             </button>
           </>
         ) : (
-          <Link
-            to="/auth"
-            className="signal-fill rounded-md px-3 py-1.5 text-xs font-medium"
-          >
+          <Link to="/auth" className="signal-fill rounded-md px-3 py-1.5 text-xs font-medium">
             Sign in
           </Link>
         )}
