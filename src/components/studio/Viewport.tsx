@@ -153,13 +153,30 @@ function RigBody({ scene, animations }: { scene: THREE.Object3D; animations: THR
 
   // normalize scale + ground the character
   const fit = useMemo(() => {
+    model.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(model);
     const size = new THREE.Vector3();
     box.getSize(size);
-    const height = Math.max(size.y, 0.0001);
+    const height = Math.max(size.y, size.z, size.x, 0.0001);
     const scale = 1.75 / height;
-    return { scale, y: -box.min.y * scale };
+    (globalThis as any).__fit = { size: size.toArray(), min: box.min.toArray(), scale };
+    return { scale, y: -box.min.y * scale, height: 1.75 };
   }, [model]);
+
+  // frame the rig in view whenever the asset changes
+  const { camera, controls } = useThree();
+  useEffect(() => {
+    const h = fit.height;
+    const dist = h * 2.1;
+    camera.position.set(dist * 0.62, h * 0.95, dist * 0.82);
+    camera.lookAt(0, h * 0.5, 0);
+    const c = controls as unknown as { target?: THREE.Vector3; update?: () => void } | null;
+    if (c?.target) {
+      c.target.set(0, h * 0.5, 0);
+      c.update?.();
+    }
+  }, [camera, controls, fit]);
+
 
   const materialMap = useMemo(() => {
     const map = new Map<string, THREE.MeshStandardMaterial[]>();
@@ -273,8 +290,9 @@ function RigBody({ scene, animations }: { scene: THREE.Object3D; animations: THR
     });
   }, [materials, materialMap]);
 
-  useFrame(() => {
+  useFrame(({ camera: cam }) => {
     const s = useStudio.getState();
+    (globalThis as any).__cam = { pos: cam.position.toArray(), fov: (cam as THREE.PerspectiveCamera).fov };
     mixer.setTime(Math.max(s.time, 0.0001));
     if (!s.rootMotion) {
       const hips = model.children[0];

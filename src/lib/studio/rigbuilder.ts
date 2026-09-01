@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-export type RigPreset = "biped" | "quadruped";
+export type RigPreset = "biped" | "quadruped" | "avian" | "hexapod";
 
 export type RigSpec = {
   preset: RigPreset;
@@ -74,6 +74,7 @@ function bipedTree(s: RigSpec): BoneDef {
   const foot = s.legLength * 0.18;
   const t = s.thickness;
 
+  const wing = s.preset === "avian";
   const arm = (side: "L" | "R"): BoneDef => {
     const dir = side === "L" ? 1 : -1;
     return {
@@ -84,8 +85,8 @@ function bipedTree(s: RigSpec): BoneDef {
       rotation: [0, 0, (-Math.PI / 2) * dir],
       material: "Body",
       children: [
-        limb(`UpperArm.${side}`, upperArm, t * 0.75, [0, s.shoulderWidth / 2, 0], [0, 0, -0.25], [
-          limb(`LowerArm.${side}`, foreArm, t * 0.62, [0, upperArm, 0], [0, 0, -0.2], [
+        limb(`UpperArm.${side}`, upperArm, t * (wing ? 0.55 : 0.75), [0, s.shoulderWidth / 2, 0], [wing ? 0.35 : 0, 0, wing ? 0.15 : -0.25], [
+          limb(`LowerArm.${side}`, foreArm * (wing ? 1.4 : 1), t * (wing ? 0.42 : 0.62), [0, upperArm, 0], [0, 0, wing ? 0.1 : -0.2], [
             {
               name: `Hand.${side}`,
               length: hand,
@@ -159,7 +160,7 @@ function bipedTree(s: RigSpec): BoneDef {
   }
 
   const hipsKids: BoneDef[] = [node, leg("L"), leg("R")];
-  if (s.tail) {
+  if (s.tail || s.preset === "avian") {
     hipsKids.push(
       limb("Tail1", 0.22, t * 0.5, [0, 0, -t], [Math.PI / 2.3, 0, 0], [
         limb("Tail2", 0.2, t * 0.38, [0, 0.22, 0], [0.25, 0, 0]),
@@ -227,6 +228,12 @@ function quadrupedTree(s: RigSpec): BoneDef {
   };
 
   const kids: BoneDef[] = [chest, leg("UpperLeg.BL", s.hipWidth / 2, 0), leg("UpperLeg.BR", -s.hipWidth / 2, 0)];
+  if (s.preset === "hexapod") {
+    chest.children?.push(
+      leg("UpperLeg.ML", s.hipWidth / 2 + t, -bodyLen * 0.45),
+      leg("UpperLeg.MR", -(s.hipWidth / 2 + t), -bodyLen * 0.45),
+    );
+  }
   if (s.tail) {
     kids.push(
       limb("Tail1", 0.28, t * 0.45, [0, 0, -t], [Math.PI / 2.2, 0, 0], [
@@ -322,33 +329,65 @@ function buildClips(root: THREE.Object3D, spec: RigSpec): THREE.AnimationClip[] 
   if (has("UpperArm.R")) idle.push(swingTrack("UpperArm.R", b("UpperArm.R"), 0.06, "x", 0.5, 2.4));
   if (idle.length) clips.push(new THREE.AnimationClip("Idle", 2.4, idle));
 
-  // Walk — opposing limb swing
-  const walk: THREE.KeyframeTrack[] = [];
-  const dur = 1.1;
-  const legs =
-    spec.preset === "biped"
-      ? ([
-          ["UpperLeg.L", 0],
-          ["UpperLeg.R", 0.5],
-        ] as const)
-      : ([
-          ["UpperLeg.FL", 0],
-          ["UpperLeg.FR", 0.5],
-          ["UpperLeg.BL", 0.5],
-          ["UpperLeg.BR", 0],
-        ] as const);
-  legs.forEach(([name, phase]) => {
-    if (has(name)) walk.push(swingTrack(name, b(name), 0.55, "x", phase, dur));
-    const lower = name.replace("UpperLeg", "LowerLeg");
-    if (has(lower)) walk.push(swingTrack(lower, b(lower), 0.35, "x", phase + 0.25, dur));
-  });
-  if (has("UpperArm.L")) walk.push(swingTrack("UpperArm.L", b("UpperArm.L"), 0.5, "x", 0.5, dur));
-  if (has("UpperArm.R")) walk.push(swingTrack("UpperArm.R", b("UpperArm.R"), 0.5, "x", 0, dur));
-  if (has("Spine")) walk.push(swingTrack("Spine", b("Spine"), 0.06, "z", 0, dur));
-  if (walk.length) clips.push(new THREE.AnimationClip("Walk", dur, walk));
+  // gait generator — works for any number of legs
+  const legNames = [...base.keys()].filter((n) => n.startsWith("UpperLeg."));
+  const phaseOf = (name: string, i: number) => {
+    const side = name.endsWith("L") ? 0 : 0.5;
+    return (side + (name.includes(".B") || name.includes(".M") ? 0.5 : 0) + i * 0.0001) % 1;
+  };
 
-  // Wave / alert pose loop (biped only)
-  if (spec.preset === "biped" && has("LowerArm.R")) {
+  const gait = (label: string, duration: number, legAmp: number, armAmp: number, bounce: number) => {
+    const tracks: THREE.KeyframeTrack[] = [];
+    legNames.forEach((name, i) => {
+      const p = phaseOf(name, i);
+      tracks.push(swingTrack(name, b(name), legAmp, "x", p, duration));
+      const lower = name.replace("UpperLeg", "LowerLeg");
+      if (has(lower)) tracks.push(swingTrack(lower, b(lower), legAmp * 0.65, "x", p + 0.25, duration));
+      const foot = name.replace("UpperLeg", "Foot");
+      if (has(foot)) tracks.push(swingTrack(foot, b(foot), legAmp * 0.3, "x", p + 0.5, duration));
+    });
+    (["L", "R"] as const).forEach((side, i) => {
+      const up = `UpperArm.${side}`;
+      const low = `LowerArm.${side}`;
+      if (has(up)) tracks.push(swingTrack(up, b(up), armAmp, "x", i * 0.5 + 0.5, duration));
+      if (has(low)) tracks.push(swingTrack(low, b(low), armAmp * 0.4, "x", i * 0.5 + 0.75, duration));
+    });
+    if (has("Spine")) tracks.push(swingTrack("Spine", b("Spine"), bounce, "z", 0, duration));
+    if (has("Chest")) tracks.push(swingTrack("Chest", b("Chest"), bounce * 0.8, "x", 0.25, duration));
+    if (has("Head")) tracks.push(swingTrack("Head", b("Head"), bounce * 0.6, "x", 0.5, duration));
+    if (tracks.length) clips.push(new THREE.AnimationClip(label, duration, tracks));
+  };
+
+  gait("Walk", 1.1, 0.55, 0.5, 0.06);
+  gait("Run", 0.68, 0.95, 0.85, 0.11);
+  if (spec.preset !== "biped" && legNames.length > 2) gait("Trot", 0.85, 0.72, 0.6, 0.08);
+
+  // Jump — crouch, launch, land arc
+  const jump: THREE.KeyframeTrack[] = [];
+  const jd = 1.2;
+  const arc = (bone: string, amp: number) => {
+    const times = [0, 0.2, 0.45, 0.75, 1].map((u) => u * jd);
+    const shape = [0, -amp, amp * 0.8, -amp * 0.5, 0];
+    const values: number[] = [];
+    const tmp = new THREE.Quaternion();
+    times.forEach((_, i) => {
+      tmp.copy(b(bone)).multiply(q(shape[i] ?? 0, 0, 0));
+      values.push(tmp.x, tmp.y, tmp.z, tmp.w);
+    });
+    jump.push(new THREE.QuaternionKeyframeTrack(`${bone}.quaternion`, times, values));
+  };
+  legNames.forEach((n) => {
+    arc(n, 0.7);
+    const lower = n.replace("UpperLeg", "LowerLeg");
+    if (has(lower)) arc(lower, -0.8);
+  });
+  if (has("UpperArm.L")) arc("UpperArm.L", 1.1);
+  if (has("UpperArm.R")) arc("UpperArm.R", 1.1);
+  if (has("Spine")) arc("Spine", 0.2);
+  if (jump.length) clips.push(new THREE.AnimationClip("Jump", jd, jump));
+
+  // Wave / alert pose loop
+  if (has("LowerArm.R")) {
     const wave: THREE.KeyframeTrack[] = [
       swingTrack("UpperArm.R", b("UpperArm.R").clone().multiply(q(0, 0, 1.1)), 0.15, "x", 0, 1.6),
       swingTrack("LowerArm.R", b("LowerArm.R"), 0.5, "x", 0, 1.6),
@@ -360,11 +399,13 @@ function buildClips(root: THREE.Object3D, spec: RigSpec): THREE.AnimationClip[] 
   return clips;
 }
 
+
 /** Builds a procedural, fully-named skeleton plus generated animation clips. */
 export function buildRig(spec: RigSpec): { root: THREE.Group; animations: THREE.AnimationClip[] } {
   const materials = makeMaterials();
   const bones: THREE.Bone[] = [];
-  const tree = spec.preset === "biped" ? bipedTree(spec) : quadrupedTree(spec);
+  const tree =
+    spec.preset === "biped" || spec.preset === "avian" ? bipedTree(spec) : quadrupedTree(spec);
   const rootBone = buildBone(tree, materials, bones);
 
   const root = new THREE.Group();
