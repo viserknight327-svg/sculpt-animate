@@ -1,24 +1,133 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { DEFAULT_RIG_SPEC, type RigSpec } from "@/lib/studio/rigbuilder";
 import { SAMPLE_ASSETS, SAMPLE_MOCAP } from "@/lib/studio/samples";
 import { useStudio } from "@/lib/studio/store";
 
 export default function AssetsPanel() {
-  const { assetUrl, assetKind, loadAsset, loadMocap, mocapName, clipNames, activeClip, setActiveClip, materialNames, selectMaterial, setTab, selectedMaterial, rigSpec, buildCustomRig, updateRigSpec } =
-    useStudio();
+  const {
+    assetUrl,
+    assetKind,
+    loadAsset,
+    loadMocap,
+    mocapName,
+    clipNames,
+    activeClip,
+    setActiveClip,
+    materialNames,
+    selectMaterial,
+    setTab,
+    selectedMaterial,
+    rigSpec,
+    buildCustomRig,
+    updateRigSpec,
+  } = useStudio();
   const modelInput = useRef<HTMLInputElement>(null);
   const mocapInput = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
   const custom = assetKind === "custom";
+
+  useEffect(() => {
+    if (videoRef.current && cameraStream) videoRef.current.srcObject = cameraStream;
+    return () => {
+      cameraStream?.getTracks().forEach((track) => track.stop());
+    };
+  }, [cameraStream]);
+
+  const toggleCamera = async () => {
+    if (cameraStream) {
+      if (recording) recorderRef.current?.stop();
+      cameraStream.getTracks().forEach((track) => track.stop());
+      setCameraStream(null);
+      setRecording(false);
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      setCameraStream(stream);
+    } catch {
+      toast.error("Camera access was not granted");
+    }
+  };
+
+  const toggleRecording = () => {
+    if (!cameraStream) return;
+    if (recording) {
+      recorderRef.current?.stop();
+      setRecording(false);
+      return;
+    }
+    chunksRef.current = [];
+    const recorder = new MediaRecorder(cameraStream, { mimeType: "video/webm" });
+    recorder.ondataavailable = (event) => event.data.size && chunksRef.current.push(event.data);
+    recorder.onstop = () => {
+      if (recordedUrl) URL.revokeObjectURL(recordedUrl);
+      setRecordedUrl(URL.createObjectURL(new Blob(chunksRef.current, { type: "video/webm" })));
+      toast.success("Webcam take recorded — use it as a motion reference");
+    };
+    recorderRef.current = recorder;
+    recorder.start();
+    setRecording(true);
+  };
 
   const apply = (patch: Partial<RigSpec>) => {
     updateRigSpec(patch);
     if (custom) buildCustomRig(patch);
   };
 
-
   return (
     <aside className="panel-surface hairline-r flex w-[268px] shrink-0 flex-col overflow-y-auto">
+      <Section title="Live capture">
+        <div className="overflow-hidden rounded-md border border-border bg-black">
+          {cameraStream ? (
+            <video
+              ref={videoRef}
+              autoPlay
+              muted
+              playsInline
+              className="aspect-video w-full object-cover"
+            />
+          ) : (
+            <div className="grid aspect-video place-items-center px-4 text-center text-[10px] text-muted-foreground">
+              Camera preview and capture source
+            </div>
+          )}
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-1">
+          <button
+            onClick={toggleCamera}
+            className="rounded-md border border-border bg-[var(--panel-raised)] py-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+          >
+            {cameraStream ? "Stop camera" : "Start camera"}
+          </button>
+          <button
+            onClick={toggleRecording}
+            disabled={!cameraStream}
+            className={`rounded-md border py-1.5 text-[11px] ${recording ? "border-red-400/60 bg-red-400/10 text-red-300" : "border-[var(--data)]/40 bg-[var(--data)]/10 text-[var(--data)]"} disabled:opacity-40`}
+          >
+            {recording ? "Stop take" : "Record take"}
+          </button>
+        </div>
+        {recordedUrl && (
+          <a
+            href={recordedUrl}
+            download="motion-reference.webm"
+            className="mt-2 block text-center text-[10px] text-primary hover:underline"
+          >
+            Download motion reference
+          </a>
+        )}
+        <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground/70">
+          Capture a clean reference take here, then use BVH import or a pose-tracking adapter to
+          drive the retargeting rig.
+        </p>
+      </Section>
+
       <Section title="Asset library">
         <div className="space-y-1">
           {SAMPLE_ASSETS.map((a) => (
@@ -82,15 +191,86 @@ export default function AssetsPanel() {
           />
         </label>
 
-        <Num label="Height" value={rigSpec.height} min={0.6} max={3} step={0.05} unit="m" onChange={(v) => apply({ height: v })} />
-        <Num label="Spine joints" value={rigSpec.spineSegments} min={1} max={4} step={1} onChange={(v) => apply({ spineSegments: v })} />
-        <Num label="Neck" value={rigSpec.neckLength} min={0.02} max={0.5} step={0.01} unit="m" onChange={(v) => apply({ neckLength: v })} />
-        <Num label="Head size" value={rigSpec.headSize} min={0.08} max={0.5} step={0.01} unit="m" onChange={(v) => apply({ headSize: v })} />
-        <Num label="Shoulders" value={rigSpec.shoulderWidth} min={0.1} max={0.9} step={0.01} unit="m" onChange={(v) => apply({ shoulderWidth: v })} />
-        <Num label="Arm length" value={rigSpec.armLength} min={0.2} max={1.2} step={0.01} unit="m" onChange={(v) => apply({ armLength: v })} />
-        <Num label="Hip width" value={rigSpec.hipWidth} min={0.08} max={0.8} step={0.01} unit="m" onChange={(v) => apply({ hipWidth: v })} />
-        <Num label="Leg length" value={rigSpec.legLength} min={0.2} max={1.4} step={0.01} unit="m" onChange={(v) => apply({ legLength: v })} />
-        <Num label="Thickness" value={rigSpec.thickness} min={0.02} max={0.25} step={0.005} unit="m" onChange={(v) => apply({ thickness: v })} />
+        <Num
+          label="Height"
+          value={rigSpec.height}
+          min={0.6}
+          max={3}
+          step={0.05}
+          unit="m"
+          onChange={(v) => apply({ height: v })}
+        />
+        <Num
+          label="Spine joints"
+          value={rigSpec.spineSegments}
+          min={1}
+          max={4}
+          step={1}
+          onChange={(v) => apply({ spineSegments: v })}
+        />
+        <Num
+          label="Neck"
+          value={rigSpec.neckLength}
+          min={0.02}
+          max={0.5}
+          step={0.01}
+          unit="m"
+          onChange={(v) => apply({ neckLength: v })}
+        />
+        <Num
+          label="Head size"
+          value={rigSpec.headSize}
+          min={0.08}
+          max={0.5}
+          step={0.01}
+          unit="m"
+          onChange={(v) => apply({ headSize: v })}
+        />
+        <Num
+          label="Shoulders"
+          value={rigSpec.shoulderWidth}
+          min={0.1}
+          max={0.9}
+          step={0.01}
+          unit="m"
+          onChange={(v) => apply({ shoulderWidth: v })}
+        />
+        <Num
+          label="Arm length"
+          value={rigSpec.armLength}
+          min={0.2}
+          max={1.2}
+          step={0.01}
+          unit="m"
+          onChange={(v) => apply({ armLength: v })}
+        />
+        <Num
+          label="Hip width"
+          value={rigSpec.hipWidth}
+          min={0.08}
+          max={0.8}
+          step={0.01}
+          unit="m"
+          onChange={(v) => apply({ hipWidth: v })}
+        />
+        <Num
+          label="Leg length"
+          value={rigSpec.legLength}
+          min={0.2}
+          max={1.4}
+          step={0.01}
+          unit="m"
+          onChange={(v) => apply({ legLength: v })}
+        />
+        <Num
+          label="Thickness"
+          value={rigSpec.thickness}
+          min={0.02}
+          max={0.25}
+          step={0.005}
+          unit="m"
+          onChange={(v) => apply({ thickness: v })}
+        />
 
         <label className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
           <span>Tail chain</span>
@@ -120,12 +300,10 @@ export default function AssetsPanel() {
           </button>
         </div>
         <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground/70">
-          Bones are named for retargeting (Hips, Spine, Chest, Neck, Head, UpperArm.L…), so BVH capture
-          maps onto your custom skeleton automatically.
+          Bones are named for retargeting (Hips, Spine, Chest, Neck, Head, UpperArm.L…), so BVH
+          capture maps onto your custom skeleton automatically.
         </p>
       </Section>
-
-
 
       <Section title="Mocap library">
         <div className="space-y-1">
@@ -176,7 +354,9 @@ export default function AssetsPanel() {
               key={c}
               onClick={() => setActiveClip(c)}
               className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs transition-colors ${
-                activeClip === c ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                activeClip === c
+                  ? "bg-primary/15 text-primary"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
               }`}
             >
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
@@ -197,7 +377,9 @@ export default function AssetsPanel() {
                 setTab("skin");
               }}
               className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs transition-colors ${
-                selectedMaterial === m ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                selectedMaterial === m
+                  ? "bg-accent text-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
               }`}
             >
               <span className="truncate">{m}</span>

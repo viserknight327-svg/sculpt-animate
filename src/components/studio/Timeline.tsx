@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useStudio } from "@/lib/studio/store";
 
 function fmt(t: number, fps: number) {
@@ -21,11 +22,15 @@ export default function Timeline() {
     setLoop,
     fps,
     keyframeTimes,
+    editorKeyframes,
+    addEditorKeyframe,
+    removeEditorKeyframe,
     activeClip,
     mocapEnabled,
     mocapName,
   } = useStudio();
 
+  const [track, setTrack] = useState("Rig");
   const pct = duration > 0 ? (time / duration) * 100 : 0;
   const step = 1 / fps;
 
@@ -80,7 +85,9 @@ export default function Timeline() {
           <button
             onClick={() => setLoop(!loop)}
             className={`rounded-md border px-2 py-1 text-xs transition-colors ${
-              loop ? "border-primary/60 bg-primary/15 text-primary" : "border-border bg-secondary text-muted-foreground"
+              loop
+                ? "border-primary/60 bg-primary/15 text-primary"
+                : "border-border bg-secondary text-muted-foreground"
             }`}
           >
             loop
@@ -88,6 +95,23 @@ export default function Timeline() {
           <div className="label-xs max-w-[220px] truncate">
             {mocapEnabled && mocapName ? `mocap · ${mocapName}` : (activeClip ?? "no clip")}
           </div>
+          <select
+            value={track}
+            onChange={(event) => setTrack(event.target.value)}
+            className="rounded border border-border bg-[var(--panel-raised)] px-1.5 py-1 text-[10px]"
+            title="Active animation track"
+          >
+            {["Rig", "Left hand IK", "Right hand IK", "Face", "Mocap cleanup"].map((name) => (
+              <option key={name}>{name}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => addEditorKeyframe(track)}
+            className="rounded border border-primary/50 bg-primary/10 px-2 py-1 text-[10px] text-primary hover:bg-primary/20"
+            title="Insert keyframe at current time"
+          >
+            + key
+          </button>
         </div>
       </div>
 
@@ -98,9 +122,19 @@ export default function Timeline() {
             {duration > 0 &&
               keyframeTimes.map((t, i) => (
                 <span
-                  key={i}
+                  key={`clip-${i}`}
                   className="absolute top-1.5 h-2 w-px bg-[var(--keyframe)] opacity-70"
                   style={{ left: `${(t / duration) * 100}%` }}
+                />
+              ))}
+            {duration > 0 &&
+              editorKeyframes.map((key) => (
+                <button
+                  key={key.id}
+                  className="absolute top-1 h-3 w-3 -translate-x-1/2 rotate-45 rounded-[2px] bg-primary shadow-[0_0_0_2px_var(--track)]"
+                  style={{ left: `${Math.max(0, Math.min(100, (key.time / duration) * 100))}%` }}
+                  title={`${key.track} · ${fmt(key.time, fps)} — click to remove`}
+                  onClick={() => removeEditorKeyframe(key.id)}
                 />
               ))}
           </div>

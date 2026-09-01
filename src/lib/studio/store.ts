@@ -49,8 +49,13 @@ export type ViewportSettings = {
   fov: number;
 };
 
-export type StudioTab = "animate" | "skin" | "mocap";
+export type StudioTab = "animate" | "skin" | "mocap" | "manga";
 export type ToolMode = "select" | "translate" | "rotate" | "scale";
+export type RigEditMode = "object" | "edit" | "weight";
+export type WeightPaintMode = "paint" | "erase" | "smooth";
+export type AnimationMode = "ik" | "fk";
+export type EditorKeyframe = { id: string; time: number; track: string; label: string };
+export type PosePreset = { id: string; name: string; createdAt: number };
 
 type StudioState = {
   // asset
@@ -96,12 +101,41 @@ type StudioState = {
   fps: number;
   setFps: (v: number) => void;
 
+  // timeline editor
+  editorKeyframes: EditorKeyframe[];
+  addEditorKeyframe: (track?: string) => void;
+  removeEditorKeyframe: (id: string) => void;
+  moveEditorKeyframe: (id: string, time: number) => void;
+  posePresets: PosePreset[];
+  savePosePreset: (name: string) => void;
+  applyPosePreset: (id: string) => void;
+  blendStrength: number;
+  setBlendStrength: (value: number) => void;
+
   // skin / materials
   materials: Record<string, MaterialOverride>;
   selectedMaterial: string | null;
   selectMaterial: (name: string | null) => void;
   updateMaterial: (name: string, patch: Partial<MaterialOverride>) => void;
   resetMaterial: (name: string) => void;
+
+  // editor modes
+  rigEditMode: RigEditMode;
+  setRigEditMode: (mode: RigEditMode) => void;
+  weightPaintMode: WeightPaintMode;
+  setWeightPaintMode: (mode: WeightPaintMode) => void;
+  weightBone: string | null;
+  setWeightBone: (bone: string | null) => void;
+  weightBrushSize: number;
+  setWeightBrushSize: (size: number) => void;
+  weightBrushStrength: number;
+  setWeightBrushStrength: (strength: number) => void;
+  animationMode: AnimationMode;
+  setAnimationMode: (mode: AnimationMode) => void;
+  ikEnabled: boolean;
+  setIkEnabled: (enabled: boolean) => void;
+  ikBlend: number;
+  setIkBlend: (blend: number) => void;
 
   // viewport
   viewport: ViewportSettings;
@@ -143,6 +177,10 @@ type StudioState = {
   // AI skin designer
   skinPrompt: string;
   setSkinPrompt: (prompt: string) => void;
+  mangaPrompt: string;
+  setMangaPrompt: (prompt: string) => void;
+  mangaStyle: string;
+  setMangaStyle: (style: string) => void;
 
   // ui
   tab: StudioTab;
@@ -250,6 +288,31 @@ export const useStudio = create<StudioState>((set, get) => ({
   fps: 30,
   setFps: (fps) => set({ fps }),
 
+  editorKeyframes: [],
+  addEditorKeyframe: (track = "Rig") =>
+    set((s) => ({
+      editorKeyframes: [
+        ...s.editorKeyframes,
+        { id: `${track}-${s.time}-${Date.now()}`, time: s.time, track, label: `${track} key` },
+      ].sort((a, b) => a.time - b.time),
+    })),
+  removeEditorKeyframe: (id) =>
+    set((s) => ({ editorKeyframes: s.editorKeyframes.filter((key) => key.id !== id) })),
+  moveEditorKeyframe: (id, time) =>
+    set((s) => ({
+      editorKeyframes: s.editorKeyframes
+        .map((key) => (key.id === id ? { ...key, time } : key))
+        .sort((a, b) => a.time - b.time),
+    })),
+  posePresets: [],
+  savePosePreset: (name) =>
+    set((s) => ({
+      posePresets: [...s.posePresets, { id: `${name}-${Date.now()}`, name, createdAt: Date.now() }],
+    })),
+  applyPosePreset: () => set({ playing: false }),
+  blendStrength: 0.5,
+  setBlendStrength: (blendStrength) => set({ blendStrength }),
+
   materials: {},
   selectedMaterial: null,
   selectMaterial: (selectedMaterial) => set({ selectedMaterial }),
@@ -262,6 +325,23 @@ export const useStudio = create<StudioState>((set, get) => ({
     })),
   resetMaterial: (name) =>
     set((s) => ({ materials: { ...s.materials, [name]: { ...DEFAULT_MATERIAL } } })),
+
+  rigEditMode: "object",
+  setRigEditMode: (rigEditMode) => set({ rigEditMode }),
+  weightPaintMode: "paint",
+  setWeightPaintMode: (weightPaintMode) => set({ weightPaintMode }),
+  weightBone: null,
+  setWeightBone: (weightBone) => set({ weightBone }),
+  weightBrushSize: 0.18,
+  setWeightBrushSize: (weightBrushSize) => set({ weightBrushSize }),
+  weightBrushStrength: 0.65,
+  setWeightBrushStrength: (weightBrushStrength) => set({ weightBrushStrength }),
+  animationMode: "ik",
+  setAnimationMode: (animationMode) => set({ animationMode }),
+  ikEnabled: true,
+  setIkEnabled: (ikEnabled) => set({ ikEnabled }),
+  ikBlend: 1,
+  setIkBlend: (ikBlend) => set({ ikBlend }),
 
   viewport: DEFAULT_VIEWPORT,
   setViewport: (patch) => set((s) => ({ viewport: { ...s.viewport, ...patch } })),
@@ -320,6 +400,10 @@ export const useStudio = create<StudioState>((set, get) => ({
 
   skinPrompt: "neon cyberpunk circuit armor",
   setSkinPrompt: (skinPrompt) => set({ skinPrompt }),
+  mangaPrompt: "a cyber ninja hero with a long coat",
+  setMangaPrompt: (mangaPrompt) => set({ mangaPrompt }),
+  mangaStyle: "shonen hero",
+  setMangaStyle: (mangaStyle) => set({ mangaStyle }),
 
   tab: "animate",
   setTab: (tab) => set({ tab }),
@@ -343,6 +427,19 @@ export const useStudio = create<StudioState>((set, get) => ({
       mocapOffset: s.mocapOffset,
       mocapMirror: s.mocapMirror,
       skinPrompt: s.skinPrompt,
+      mangaPrompt: s.mangaPrompt,
+      mangaStyle: s.mangaStyle,
+      rigEditMode: s.rigEditMode,
+      weightPaintMode: s.weightPaintMode,
+      weightBone: s.weightBone,
+      weightBrushSize: s.weightBrushSize,
+      weightBrushStrength: s.weightBrushStrength,
+      animationMode: s.animationMode,
+      ikEnabled: s.ikEnabled,
+      ikBlend: s.ikBlend,
+      editorKeyframes: s.editorKeyframes,
+      posePresets: s.posePresets,
+      blendStrength: s.blendStrength,
       objectTransform: s.objectTransform,
     };
   },
@@ -365,6 +462,19 @@ export const useStudio = create<StudioState>((set, get) => ({
       mocapOffset: (d["mocapOffset"] as number) ?? s.mocapOffset,
       mocapMirror: (d["mocapMirror"] as boolean) ?? s.mocapMirror,
       skinPrompt: (d["skinPrompt"] as string) ?? s.skinPrompt,
+      mangaPrompt: (d["mangaPrompt"] as string) ?? s.mangaPrompt,
+      mangaStyle: (d["mangaStyle"] as string) ?? s.mangaStyle,
+      rigEditMode: (d["rigEditMode"] as RigEditMode) ?? s.rigEditMode,
+      weightPaintMode: (d["weightPaintMode"] as WeightPaintMode) ?? s.weightPaintMode,
+      weightBone: (d["weightBone"] as string | null) ?? s.weightBone,
+      weightBrushSize: (d["weightBrushSize"] as number) ?? s.weightBrushSize,
+      weightBrushStrength: (d["weightBrushStrength"] as number) ?? s.weightBrushStrength,
+      animationMode: (d["animationMode"] as AnimationMode) ?? s.animationMode,
+      ikEnabled: (d["ikEnabled"] as boolean) ?? s.ikEnabled,
+      ikBlend: (d["ikBlend"] as number) ?? s.ikBlend,
+      editorKeyframes: (d["editorKeyframes"] as EditorKeyframe[]) ?? s.editorKeyframes,
+      posePresets: (d["posePresets"] as PosePreset[]) ?? s.posePresets,
+      blendStrength: (d["blendStrength"] as number) ?? s.blendStrength,
       objectTransform:
         (d["objectTransform"] as StudioState["objectTransform"]) ?? s.objectTransform,
       time: 0,

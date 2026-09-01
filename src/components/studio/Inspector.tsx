@@ -7,6 +7,7 @@ import {
   previewPalette,
   SKIN_DESIGN_PRESETS,
 } from "@/lib/studio/skinDesigner";
+import { designMangaCharacter, MANGA_STYLES, type MangaStyle } from "@/lib/studio/mangaDesigner";
 import { DEFAULT_MATERIAL, useStudio } from "@/lib/studio/store";
 import { Panel, Row, Slider, Swatch, Toggle } from "./controls";
 
@@ -14,6 +15,8 @@ const TABS = [
   { id: "animate", label: "Animate" },
   { id: "skin", label: "Skin" },
   { id: "mocap", label: "Mocap" },
+  { id: "manga", label: "Manga" },
+  { id: "rig", label: "Rig" },
 ] as const;
 
 export default function Inspector() {
@@ -22,7 +25,7 @@ export default function Inspector() {
 
   return (
     <aside className="panel-surface hairline-l flex w-[320px] shrink-0 flex-col">
-      <div className="hairline-b grid grid-cols-3">
+      <div className="hairline-b grid grid-cols-5">
         {TABS.map((t) => (
           <button
             key={t.id}
@@ -41,8 +44,230 @@ export default function Inspector() {
         {tab === "animate" && <AnimateTab />}
         {tab === "skin" && <SkinTab />}
         {tab === "mocap" && <MocapTab />}
+        {tab === "manga" && <MangaTab />}
+        {tab === "rig" && <RigTab />}
       </div>
     </aside>
+  );
+}
+
+function RigTab() {
+  const s = useStudio();
+  const selectedBone = s.weightBone ?? s.targetBones[0] ?? null;
+  const setMode = (mode: "object" | "edit" | "weight") => {
+    s.setRigEditMode(mode);
+    s.setViewport({ skeleton: mode !== "object", bones: mode !== "object" });
+  };
+
+  return (
+    <>
+      <Panel title="Character rigging">
+        <button
+          onClick={() => {
+            s.buildCustomRig(s.rigSpec);
+            toast.success("Automatic rig generated from the current character profile");
+          }}
+          className="signal-fill w-full rounded-md py-1.5 text-xs font-semibold"
+        >
+          Auto-rig current character
+        </button>
+        <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground/70">
+          Generates a named, retarget-ready skeleton from the current character proportions.
+          Imported meshes remain available for manual setup.
+        </p>
+        <Row label="Edit mode">
+          <div className="flex gap-1">
+            {(["object", "edit", "weight"] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setMode(mode)}
+                className={`rounded border px-1.5 py-1 text-[10px] ${s.rigEditMode === mode ? "border-primary/60 bg-primary/15 text-primary" : "border-border text-muted-foreground"}`}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+        </Row>
+      </Panel>
+
+      <Panel title="Bone controls">
+        <Row label="Active bone">
+          <select
+            value={selectedBone ?? ""}
+            onChange={(event) => s.setWeightBone(event.target.value || null)}
+            className="max-w-[175px] truncate rounded-md border border-border bg-[var(--panel-raised)] px-2 py-1 text-[10px]"
+          >
+            {s.targetBones.length === 0 && <option value="">No rig loaded</option>}
+            {s.targetBones.map((bone) => (
+              <option key={bone} value={bone}>
+                {bone}
+              </option>
+            ))}
+          </select>
+        </Row>
+        <Row label="IK / FK">
+          <div className="flex gap-1">
+            {(["ik", "fk"] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => s.setAnimationMode(mode)}
+                className={`rounded border px-2 py-1 text-[10px] uppercase ${s.animationMode === mode ? "border-primary/60 bg-primary/15 text-primary" : "border-border text-muted-foreground"}`}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+        </Row>
+        <Row label="IK enabled">
+          <Toggle
+            label={s.ikEnabled ? "on" : "off"}
+            value={s.ikEnabled}
+            onChange={s.setIkEnabled}
+          />
+        </Row>
+        <Row label="IK blend">
+          <Slider value={s.ikBlend} onChange={s.setIkBlend} />
+        </Row>
+      </Panel>
+
+      <Panel title="Weight painting">
+        <Row label="Brush mode">
+          <div className="flex gap-1">
+            {(["paint", "erase", "smooth"] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => s.setWeightPaintMode(mode)}
+                className={`rounded border px-1.5 py-1 text-[10px] ${s.weightPaintMode === mode ? "border-primary/60 bg-primary/15 text-primary" : "border-border text-muted-foreground"}`}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+        </Row>
+        <Row label="Radius">
+          <Slider
+            value={s.weightBrushSize}
+            onChange={s.setWeightBrushSize}
+            min={0.02}
+            max={0.6}
+            step={0.01}
+          />
+        </Row>
+        <Row label="Strength">
+          <Slider
+            value={s.weightBrushStrength}
+            onChange={s.setWeightBrushStrength}
+            min={0.05}
+            max={1}
+            step={0.05}
+          />
+        </Row>
+        <button
+          onClick={() => {
+            s.setViewport({ skeleton: true, bones: true });
+            toast.success(
+              selectedBone
+                ? `Painting influence for ${selectedBone}`
+                : "Select a bone to paint influence",
+            );
+          }}
+          className="w-full rounded-md border border-border bg-secondary py-1.5 text-xs text-muted-foreground hover:text-foreground"
+        >
+          Show affected vertices
+        </button>
+      </Panel>
+    </>
+  );
+}
+
+function MangaTab() {
+  const s = useStudio();
+  const [generating, setGenerating] = useState(false);
+  const design = designMangaCharacter(s.mangaPrompt, (s.mangaStyle as MangaStyle) || "shonen hero");
+
+  return (
+    <>
+      <Panel title="Manga character generator">
+        <textarea
+          value={s.mangaPrompt}
+          onChange={(event) => s.setMangaPrompt(event.target.value)}
+          rows={4}
+          placeholder="Describe a character, creature, costume, or manga protagonist…"
+          className="w-full resize-none rounded-md border border-border bg-[var(--panel-raised)] px-2 py-1.5 text-xs leading-relaxed focus:border-primary/60 focus:outline-none"
+        />
+        <Row label="Style">
+          <select
+            value={s.mangaStyle}
+            onChange={(event) => s.setMangaStyle(event.target.value)}
+            className="max-w-[170px] rounded-md border border-border bg-[var(--panel-raised)] px-2 py-1 text-xs"
+          >
+            {MANGA_STYLES.map((style) => (
+              <option key={style} value={style}>
+                {style}
+              </option>
+            ))}
+          </select>
+        </Row>
+        <div className="mt-2 space-y-1 rounded-md border border-border bg-[var(--panel-raised)] p-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-medium text-foreground">{design.title}</span>
+            <span className="num text-muted-foreground">{design.rigPatch.preset}</span>
+          </div>
+          {design.designNotes.map((note) => (
+            <div key={note} className="text-[10px] text-muted-foreground">
+              • {note}
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={() => {
+            setGenerating(true);
+            s.buildCustomRig(design.rigPatch);
+            s.setSkinPrompt(design.skinPrompt);
+            s.setTab("skin");
+            toast.success(`${design.title} rig created — generate its manga skin next`);
+            setGenerating(false);
+          }}
+          disabled={generating}
+          className="signal-fill mt-2 w-full rounded-md py-1.5 text-xs font-semibold disabled:opacity-60"
+        >
+          {generating ? "Building character…" : "Generate + auto-rig character"}
+        </button>
+        <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground/70">
+          One click creates proportions, named bones, retarget-ready rig data, and a matching skin
+          prompt.
+        </p>
+      </Panel>
+
+      <Panel title="One-click pipeline">
+        <div className="grid grid-cols-2 gap-1 text-[10px]">
+          {["Design", "Auto Rig", "Capture", "Retarget", "Preview", "Export"].map((step, index) => (
+            <div
+              key={step}
+              className="rounded border border-border bg-[var(--panel-raised)] px-2 py-1.5"
+            >
+              <span className="num mr-1 text-primary">0{index + 1}</span>
+              {step}
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={() => {
+            const next = designMangaCharacter(
+              `${s.mangaPrompt} animation-ready hero`,
+              (s.mangaStyle as MangaStyle) || "shonen hero",
+            );
+            s.buildCustomRig(next.rigPatch);
+            s.setSkinPrompt(next.skinPrompt);
+            s.setTab("animate");
+            toast.success("Character pipeline ready — choose a clip and press play");
+          }}
+          className="mt-2 w-full rounded-md border border-primary/40 bg-primary/10 py-1.5 text-xs text-primary hover:bg-primary/15"
+        >
+          Prepare animation pipeline
+        </button>
+      </Panel>
+    </>
   );
 }
 
@@ -111,6 +336,53 @@ function AnimateTab() {
         <Row label="Keys on clip">
           <span className="num text-xs">{s.keyframeTimes.length}</span>
         </Row>
+      </Panel>
+
+      <Panel title="Animation tools">
+        <Row label="Blend strength">
+          <Slider value={s.blendStrength} onChange={s.setBlendStrength} />
+        </Row>
+        <Row label="Editor keys">
+          <span className="num text-xs">{s.editorKeyframes.length}</span>
+        </Row>
+        <button
+          onClick={() => {
+            s.addEditorKeyframe("Rig");
+            toast.success(`Keyframe added at ${s.time.toFixed(2)}s`);
+          }}
+          className="w-full rounded-md border border-primary/40 bg-primary/10 py-1.5 text-xs text-primary hover:bg-primary/15"
+        >
+          Insert pose keyframe
+        </button>
+        <div className="mt-2 grid grid-cols-2 gap-1">
+          <button
+            onClick={() => s.savePosePreset(`Pose ${s.posePresets.length + 1}`)}
+            className="rounded border border-border bg-[var(--panel-raised)] py-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+          >
+            Save pose
+          </button>
+          <button
+            onClick={() => s.posePresets[0] && s.applyPosePreset(s.posePresets[0].id)}
+            disabled={s.posePresets.length === 0}
+            className="rounded border border-border bg-[var(--panel-raised)] py-1.5 text-[10px] text-muted-foreground hover:text-foreground disabled:opacity-40"
+          >
+            Apply first pose
+          </button>
+        </div>
+        {s.posePresets.length > 0 && (
+          <div className="mt-2 space-y-1">
+            {s.posePresets.slice(-3).map((pose) => (
+              <button
+                key={pose.id}
+                onClick={() => s.applyPosePreset(pose.id)}
+                className="flex w-full items-center justify-between rounded border border-border bg-[var(--panel-raised)] px-2 py-1 text-left text-[10px] text-muted-foreground hover:text-foreground"
+              >
+                <span>{pose.name}</span>
+                <span className="text-primary">apply</span>
+              </button>
+            ))}
+          </div>
+        )}
       </Panel>
 
       <Panel title="Stage">
@@ -439,6 +711,32 @@ function MocapTab() {
             onChange={s.setMocapMirror}
           />
         </Row>
+        <div className="mt-2 grid grid-cols-2 gap-1">
+          <button
+            onClick={() => {
+              s.setMocapSmoothing(0.35);
+              s.setMocapOffset(0);
+              toast.success("Jitter cleanup preset applied");
+            }}
+            className="rounded border border-border bg-[var(--panel-raised)] py-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+          >
+            Remove jitter
+          </button>
+          <button
+            onClick={() => {
+              const unique = new Map(
+                s.editorKeyframes.map((key) => [Math.round(key.time * 10), key]),
+              );
+              unique.forEach((key, bucket) => {
+                s.moveEditorKeyframe(key.id, bucket / 10);
+              });
+              toast.success("Animation keys reduced to a 10-frame cleanup grid");
+            }}
+            className="rounded border border-border bg-[var(--panel-raised)] py-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+          >
+            Reduce keys
+          </button>
+        </div>
         <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground/70">
           Offset aligns a capture to the timeline. Smoothing reduces jitter while preserving the
           retargeted pose.
