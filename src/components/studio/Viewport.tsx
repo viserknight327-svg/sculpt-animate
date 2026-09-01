@@ -14,6 +14,7 @@ import * as THREE from "three";
 import { BVHLoader } from "three/examples/jsm/loaders/BVHLoader.js";
 import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { buildRig } from "@/lib/studio/rigbuilder";
+import { mirrorBoneName } from "@/lib/studio/retarget";
 import { useStudio, type MaterialOverride } from "@/lib/studio/store";
 
 const textureCache = new Map<string, THREE.Texture>();
@@ -91,7 +92,8 @@ function MocapDriver({ bones }: { bones: Map<string, THREE.Bone> }) {
     const influence = s.mocapInfluence;
     for (const joint of Object.values(s.mapping)) {
       if (!joint?.source || !joint?.target) continue;
-      const src = sourceMap.get(joint.source);
+      const sourceName = s.mocapMirror ? mirrorBoneName(joint.source) : joint.source;
+      const src = sourceMap.get(sourceName);
       const dst = bones.get(joint.target);
       if (!src || !dst) continue;
       const previous = smoothed.current.get(joint.target) ?? dst.quaternion.clone();
@@ -302,6 +304,9 @@ function RigBody({
         const tex = o.mapUrl ? getTexture(o.mapUrl) : null;
         if (tex) {
           tex.repeat.set(o.repeat, o.repeat);
+          tex.offset.set(o.offsetX, o.offsetY);
+          tex.rotation = o.rotation;
+          tex.center.set(0.5, 0.5);
           tex.needsUpdate = true;
         }
         m.map = tex;

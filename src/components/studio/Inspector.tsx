@@ -1,6 +1,12 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { CANONICAL_JOINTS } from "@/lib/studio/retarget";
+import {
+  createSkinDesign,
+  DEFAULT_SKIN_PROMPT,
+  previewPalette,
+  SKIN_DESIGN_PRESETS,
+} from "@/lib/studio/skinDesigner";
 import { DEFAULT_MATERIAL, useStudio } from "@/lib/studio/store";
 import { Panel, Row, Slider, Swatch, Toggle } from "./controls";
 
@@ -172,10 +178,14 @@ function SkinTab() {
     materials,
     updateMaterial,
     resetMaterial,
+    skinPrompt,
+    setSkinPrompt,
   } = useStudio();
   const texInput = useRef<HTMLInputElement>(null);
+  const [generating, setGenerating] = useState(false);
   const name = selectedMaterial;
   const mat = name ? (materials[name] ?? DEFAULT_MATERIAL) : null;
+  const palette = previewPalette(skinPrompt || DEFAULT_SKIN_PROMPT);
 
   if (!name || !mat) {
     return <p className="p-4 text-xs text-muted-foreground">Load a rig to edit its materials.</p>;
@@ -195,6 +205,58 @@ function SkinTab() {
             </option>
           ))}
         </select>
+      </Panel>
+
+      <Panel title="AI skin designer">
+        <textarea
+          value={skinPrompt}
+          onChange={(event) => setSkinPrompt(event.target.value)}
+          placeholder="Describe the character skin…"
+          rows={3}
+          className="w-full resize-none rounded-md border border-border bg-[var(--panel-raised)] px-2 py-1.5 text-xs leading-relaxed focus:border-primary/60 focus:outline-none"
+        />
+        <div className="mt-2 flex items-center gap-1">
+          {palette.colors.slice(0, 4).map((color) => (
+            <span
+              key={color}
+              className="h-4 flex-1 rounded-sm border border-white/10"
+              style={{ backgroundColor: color }}
+            />
+          ))}
+        </div>
+        <button
+          onClick={() => {
+            setGenerating(true);
+            try {
+              const design = createSkinDesign(skinPrompt);
+              updateMaterial(name, design);
+              toast.success(`Generated ${design.mapName}`);
+            } catch (error) {
+              toast.error(error instanceof Error ? error.message : "Could not generate skin map");
+            } finally {
+              setGenerating(false);
+            }
+          }}
+          disabled={generating}
+          className="signal-fill mt-2 w-full rounded-md py-1.5 text-xs font-semibold disabled:opacity-60"
+        >
+          {generating ? "Designing skin…" : "Generate AI skin map"}
+        </button>
+        <div className="mt-2 flex flex-wrap gap-1">
+          {SKIN_DESIGN_PRESETS.map((preset) => (
+            <button
+              key={preset}
+              onClick={() => setSkinPrompt(preset)}
+              className="rounded border border-border bg-[var(--panel-raised)] px-1.5 py-1 text-[10px] text-muted-foreground hover:border-primary/50 hover:text-foreground"
+            >
+              {preset.split(" ").slice(0, 2).join(" ")}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground/70">
+          Creates an editable procedural UV texture from your prompt, then applies it to the
+          selected material slot.
+        </p>
       </Panel>
 
       <Panel title="Surface">
@@ -253,6 +315,34 @@ function SkinTab() {
                 min={0.25}
                 max={8}
                 step={0.25}
+              />
+            </Row>
+            <Row label="U offset">
+              <Slider
+                value={mat.offsetX}
+                onChange={(v) => updateMaterial(name, { offsetX: v })}
+                min={-1}
+                max={1}
+                step={0.01}
+              />
+            </Row>
+            <Row label="V offset">
+              <Slider
+                value={mat.offsetY}
+                onChange={(v) => updateMaterial(name, { offsetY: v })}
+                min={-1}
+                max={1}
+                step={0.01}
+              />
+            </Row>
+            <Row label="Rotation">
+              <Slider
+                value={mat.rotation}
+                onChange={(v) => updateMaterial(name, { rotation: v })}
+                min={-Math.PI}
+                max={Math.PI}
+                step={0.01}
+                suffix="rad"
               />
             </Row>
             <button
@@ -340,6 +430,13 @@ function MocapTab() {
             min={0}
             max={0.9}
             step={0.05}
+          />
+        </Row>
+        <Row label="Mirror pose">
+          <Toggle
+            label={s.mocapMirror ? "on" : "off"}
+            value={s.mocapMirror}
+            onChange={s.setMocapMirror}
           />
         </Row>
         <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground/70">

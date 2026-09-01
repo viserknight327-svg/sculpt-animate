@@ -20,19 +20,39 @@ export const CANONICAL_JOINTS: CanonicalJoint[] = [
   { key: "chest", label: "Chest", match: [["chest"], ["torso"], ["spine2"]] },
   { key: "neck", label: "Neck", match: [["neck"]] },
   { key: "head", label: "Head", match: [["head"]] },
-  { key: "shoulderL", label: "Shoulder L", match: [["collar"], ["shoulder"], ["clavicle"]], side: L },
+  {
+    key: "shoulderL",
+    label: "Shoulder L",
+    match: [["collar"], ["shoulder"], ["clavicle"]],
+    side: L,
+  },
   { key: "upperArmL", label: "Upper arm L", match: [["shldr"], ["upperarm"], ["arm"]], side: L },
   { key: "lowerArmL", label: "Forearm L", match: [["forearm"], ["lowerarm"], ["elbow"]], side: L },
   { key: "handL", label: "Hand L", match: [["hand"], ["palm"]], side: L },
-  { key: "shoulderR", label: "Shoulder R", match: [["collar"], ["shoulder"], ["clavicle"]], side: R },
+  {
+    key: "shoulderR",
+    label: "Shoulder R",
+    match: [["collar"], ["shoulder"], ["clavicle"]],
+    side: R,
+  },
   { key: "upperArmR", label: "Upper arm R", match: [["shldr"], ["upperarm"], ["arm"]], side: R },
   { key: "lowerArmR", label: "Forearm R", match: [["forearm"], ["lowerarm"], ["elbow"]], side: R },
   { key: "handR", label: "Hand R", match: [["hand"], ["palm"]], side: R },
   { key: "upperLegL", label: "Thigh L", match: [["thigh"], ["upperleg"], ["upleg"]], side: L },
-  { key: "lowerLegL", label: "Shin L", match: [["shin"], ["lowerleg"], ["leg"], ["calf"]], side: L },
+  {
+    key: "lowerLegL",
+    label: "Shin L",
+    match: [["shin"], ["lowerleg"], ["leg"], ["calf"]],
+    side: L,
+  },
   { key: "footL", label: "Foot L", match: [["foot"], ["ankle"]], side: L },
   { key: "upperLegR", label: "Thigh R", match: [["thigh"], ["upperleg"], ["upleg"]], side: R },
-  { key: "lowerLegR", label: "Shin R", match: [["shin"], ["lowerleg"], ["leg"], ["calf"]], side: R },
+  {
+    key: "lowerLegR",
+    label: "Shin R",
+    match: [["shin"], ["lowerleg"], ["leg"], ["calf"]],
+    side: R,
+  },
   { key: "footR", label: "Foot R", match: [["foot"], ["ankle"]], side: R },
 ];
 
@@ -48,8 +68,10 @@ function sideOf(name: string): "L" | "R" | null {
     }
   }
   const raw = name.toLowerCase();
-  if (/(^|[^a-z])left([^a-z]|$)/.test(raw) || /[._-]l($|[._-])/.test(raw) || /^l[A-Z]/.test(name)) return "L";
-  if (/(^|[^a-z])right([^a-z]|$)/.test(raw) || /[._-]r($|[._-])/.test(raw) || /^r[A-Z]/.test(name)) return "R";
+  if (/(^|[^a-z])left([^a-z]|$)/.test(raw) || /[._-]l($|[._-])/.test(raw) || /^l[A-Z]/.test(name))
+    return "L";
+  if (/(^|[^a-z])right([^a-z]|$)/.test(raw) || /[._-]r($|[._-])/.test(raw) || /^r[A-Z]/.test(name))
+    return "R";
   if (/^l[a-z]/.test(name) && /^[lr]/.test(name)) return name[0] === "l" ? "L" : "R";
   if (/^r[a-z]/.test(name)) return "R";
   return null;
@@ -86,6 +108,23 @@ function bestBone(joint: CanonicalJoint, bones: string[], taken: Set<string>) {
 }
 
 export type JointMapping = Record<string, { source: string | null; target: string | null }>;
+
+export function mirrorBoneName(name: string) {
+  const swap = (left: string, right: string) => {
+    if (name.includes(left)) return name.replace(left, right);
+    if (name.includes(right)) return name.replace(right, left);
+    return null;
+  };
+  return (
+    swap(".L", ".R") ??
+    swap("_L", "_R") ??
+    swap("-L", "-R") ??
+    swap("Left", "Right") ??
+    swap("left", "right") ??
+    swap("LEFT", "RIGHT") ??
+    name
+  );
+}
 
 export function autoMap(sourceBones: string[], targetBones: string[]): JointMapping {
   const mapping: JointMapping = {};

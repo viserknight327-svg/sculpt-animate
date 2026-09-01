@@ -15,6 +15,9 @@ export type MaterialOverride = {
   mapUrl: string | null;
   mapName: string | null;
   repeat: number;
+  offsetX: number;
+  offsetY: number;
+  rotation: number;
 };
 
 export const DEFAULT_MATERIAL: MaterialOverride = {
@@ -29,6 +32,9 @@ export const DEFAULT_MATERIAL: MaterialOverride = {
   mapUrl: null,
   mapName: null,
   repeat: 1,
+  offsetX: 0,
+  offsetY: 0,
+  rotation: 0,
 };
 
 export type ViewportSettings = {
@@ -124,6 +130,8 @@ type StudioState = {
   setMocapSmoothing: (v: number) => void;
   mocapOffset: number;
   setMocapOffset: (v: number) => void;
+  mocapMirror: boolean;
+  setMocapMirror: (v: boolean) => void;
   loadMocap: (url: string, name: string) => void;
   clearMocap: () => void;
   setMocapEnabled: (v: boolean) => void;
@@ -131,6 +139,10 @@ type StudioState = {
   setMapping: (key: string, part: "source" | "target", bone: string | null) => void;
   autoMapBones: () => void;
   setMocapInfluence: (v: number) => void;
+
+  // AI skin designer
+  skinPrompt: string;
+  setSkinPrompt: (prompt: string) => void;
 
   // ui
   tab: StudioTab;
@@ -277,6 +289,8 @@ export const useStudio = create<StudioState>((set, get) => ({
   setMocapSmoothing: (mocapSmoothing) => set({ mocapSmoothing }),
   mocapOffset: 0,
   setMocapOffset: (mocapOffset) => set({ mocapOffset }),
+  mocapMirror: false,
+  setMocapMirror: (mocapMirror) => set({ mocapMirror }),
   loadMocap: (url, name) => set({ mocapUrl: url, mocapName: name, mocapEnabled: true, time: 0 }),
   clearMocap: () =>
     set({
@@ -304,6 +318,9 @@ export const useStudio = create<StudioState>((set, get) => ({
   autoMapBones: () => set((s) => ({ mapping: autoMap(s.sourceBones, s.targetBones) })),
   setMocapInfluence: (mocapInfluence) => set({ mocapInfluence }),
 
+  skinPrompt: "neon cyberpunk circuit armor",
+  setSkinPrompt: (skinPrompt) => set({ skinPrompt }),
+
   tab: "animate",
   setTab: (tab) => set({ tab }),
 
@@ -324,6 +341,8 @@ export const useStudio = create<StudioState>((set, get) => ({
       mocapInfluence: s.mocapInfluence,
       mocapSmoothing: s.mocapSmoothing,
       mocapOffset: s.mocapOffset,
+      mocapMirror: s.mocapMirror,
+      skinPrompt: s.skinPrompt,
       objectTransform: s.objectTransform,
     };
   },
@@ -344,6 +363,8 @@ export const useStudio = create<StudioState>((set, get) => ({
       mocapInfluence: (d["mocapInfluence"] as number) ?? s.mocapInfluence,
       mocapSmoothing: (d["mocapSmoothing"] as number) ?? s.mocapSmoothing,
       mocapOffset: (d["mocapOffset"] as number) ?? s.mocapOffset,
+      mocapMirror: (d["mocapMirror"] as boolean) ?? s.mocapMirror,
+      skinPrompt: (d["skinPrompt"] as string) ?? s.skinPrompt,
       objectTransform:
         (d["objectTransform"] as StudioState["objectTransform"]) ?? s.objectTransform,
       time: 0,
