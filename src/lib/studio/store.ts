@@ -57,7 +57,7 @@ export type ViewportSettings = {
   fov: number;
 };
 
-export type StudioTab = "animate" | "skin" | "mocap" | "manga";
+export type StudioTab = "animate" | "skin" | "mocap" | "manga" | "rig";
 export type ToolMode = "select" | "translate" | "rotate" | "scale";
 export type RigEditMode = "object" | "edit" | "weight";
 export type WeightPaintMode = "paint" | "erase" | "smooth";
