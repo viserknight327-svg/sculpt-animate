@@ -391,11 +391,12 @@ export const useStudio = create<StudioState>((set, get) => ({
     }),
   setMocapEnabled: (mocapEnabled) => set({ mocapEnabled }),
   setMocapInfo: ({ bones, duration }) =>
-    set({
+    set((s) => ({
       sourceBones: bones,
       mocapDuration: duration,
       mapping: autoMap(bones, get().targetBones),
-    }),
+      ...(s.mocapEnabled && duration > 0 ? { duration } : {}),
+    })),
   setMapping: (key, part, bone) =>
     set((s) => ({
       mapping: {
