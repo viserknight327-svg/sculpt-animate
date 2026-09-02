@@ -18,7 +18,7 @@ type Palette = {
   emissiveIntensity: number;
 };
 
-const PALETTES: Record<string, Palette> = {
+const PALETTES = {
   cyberpunk: {
     name: "Cyberpunk Circuit",
     colors: ["#090d18", "#13243a", "#00d9ff", "#ff3cac", "#8b5cf6"],
@@ -64,13 +64,13 @@ const PALETTES: Record<string, Palette> = {
     emissive: "#160b06",
     emissiveIntensity: 0.08,
   },
-};
+} satisfies Record<string, Palette>;
 
 function hashPrompt(prompt: string) {
   return [...prompt].reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) >>> 0, 7);
 }
 
-function paletteFor(prompt: string) {
+function paletteFor(prompt: string): Palette {
   const text = prompt.toLowerCase();
   if (text.includes("cyber") || text.includes("neon") || text.includes("circuit"))
     return PALETTES.cyberpunk;
@@ -82,7 +82,7 @@ function paletteFor(prompt: string) {
     return PALETTES.arctic;
   if (text.includes("stone") || text.includes("rock") || text.includes("ancient"))
     return PALETTES.stone;
-  const keys = Object.keys(PALETTES);
+  const keys = Object.keys(PALETTES) as (keyof typeof PALETTES)[];
   return PALETTES[keys[hashPrompt(prompt) % keys.length]!]!;
 }
 

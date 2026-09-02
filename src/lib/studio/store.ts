@@ -57,7 +57,7 @@ export type ViewportSettings = {
   fov: number;
 };
 
-export type StudioTab = "animate" | "skin" | "mocap" | "manga";
+export type StudioTab = "animate" | "skin" | "mocap" | "manga" | "rig";
 export type ToolMode = "select" | "translate" | "rotate" | "scale";
 export type RigEditMode = "object" | "edit" | "weight";
 export type WeightPaintMode = "paint" | "erase" | "smooth";
@@ -391,11 +391,12 @@ export const useStudio = create<StudioState>((set, get) => ({
     }),
   setMocapEnabled: (mocapEnabled) => set({ mocapEnabled }),
   setMocapInfo: ({ bones, duration }) =>
-    set({
+    set((s) => ({
       sourceBones: bones,
       mocapDuration: duration,
       mapping: autoMap(bones, get().targetBones),
-    }),
+      ...(s.mocapEnabled && duration > 0 ? { duration } : {}),
+    })),
   setMapping: (key, part, bone) =>
     set((s) => ({
       mapping: {

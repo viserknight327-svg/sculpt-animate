@@ -115,7 +115,7 @@ export default function TopBar() {
             try {
               const data = JSON.parse(await file.text()) as Record<string, unknown>;
               restore(data);
-              if (typeof data.name === "string") setName(data.name);
+              if (typeof data['name'] === "string") setName(data['name'] as string);
               setSceneId(null);
               toast.success(`Imported ${file.name}`);
             } catch {

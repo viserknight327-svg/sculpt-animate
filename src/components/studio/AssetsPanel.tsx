@@ -371,9 +371,9 @@ export default function AssetsPanel() {
       <Section title={`Clips (${clipNames.length})`}>
         <div className="max-h-56 space-y-0.5 overflow-y-auto">
           {clipNames.length === 0 && <Empty>No clips on this rig</Empty>}
-          {clipNames.map((c) => (
+          {clipNames.map((c, ci) => (
             <button
-              key={c}
+              key={`${c}-${ci}`}
               onClick={() => setActiveClip(c)}
               className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs transition-colors ${
                 activeClip === c
@@ -459,7 +459,7 @@ function Num({
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="mt-1 w-full"
+        className="studio-slider mt-1 w-full"
       />
     </label>
   );

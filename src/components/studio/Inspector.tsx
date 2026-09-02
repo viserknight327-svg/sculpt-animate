@@ -98,8 +98,8 @@ function RigTab() {
             className="max-w-[175px] truncate rounded-md border border-border bg-[var(--panel-raised)] px-2 py-1 text-[10px]"
           >
             {s.targetBones.length === 0 && <option value="">No rig loaded</option>}
-            {s.targetBones.map((bone) => (
-              <option key={bone} value={bone}>
+            {s.targetBones.map((bone, bi) => (
+              <option key={`${bone}-${bi}`} value={bone}>
                 {bone}
               </option>
             ))}
@@ -282,8 +282,8 @@ function AnimateTab() {
           className="w-full rounded-md border border-border bg-[var(--panel-raised)] px-2 py-1.5 text-xs"
         >
           {s.clipNames.length === 0 && <option value="">— none —</option>}
-          {s.clipNames.map((c) => (
-            <option key={c} value={c}>
+          {s.clipNames.map((c, ci) => (
+            <option key={`${c}-${ci}`} value={c}>
               {c.split("|").pop()}
             </option>
           ))}
@@ -488,9 +488,9 @@ function SkinTab() {
           className="w-full resize-none rounded-md border border-border bg-[var(--panel-raised)] px-2 py-1.5 text-xs leading-relaxed focus:border-primary/60 focus:outline-none"
         />
         <div className="mt-2 flex items-center gap-1">
-          {palette.colors.slice(0, 4).map((color) => (
+          {palette.colors.slice(0, 4).map((color, ci) => (
             <span
-              key={color}
+              key={`${color}-${ci}`}
               className="h-4 flex-1 rounded-sm border border-white/10"
               style={{ backgroundColor: color }}
             />
@@ -802,8 +802,8 @@ function MocapTab() {
                     className="min-w-0 rounded border border-border bg-[var(--panel)] px-1 py-1 text-[11px]"
                   >
                     <option value="">source —</option>
-                    {s.sourceBones.map((b) => (
-                      <option key={b} value={b}>
+                    {s.sourceBones.map((b, bi) => (
+                      <option key={`${b}-${bi}`} value={b}>
                         {b}
                       </option>
                     ))}
@@ -814,8 +814,8 @@ function MocapTab() {
                     className="min-w-0 rounded border border-border bg-[var(--panel)] px-1 py-1 text-[11px]"
                   >
                     <option value="">target —</option>
-                    {s.targetBones.map((b) => (
-                      <option key={b} value={b}>
+                    {s.targetBones.map((b, bi) => (
+                      <option key={`${b}-${bi}`} value={b}>
                         {b}
                       </option>
                     ))}
