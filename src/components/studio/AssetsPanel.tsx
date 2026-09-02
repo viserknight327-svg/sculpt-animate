@@ -459,7 +459,7 @@ function Num({
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="mt-1 w-full"
+        className="studio-slider mt-1 w-full"
       />
     </label>
   );
