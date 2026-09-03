@@ -9,6 +9,8 @@ import {
   saveScene,
   type SceneRow,
 } from "@/lib/studio/scenes";
+import { downloadStill, exportRigGlb } from "@/lib/studio/exporters";
+import { runBipedPipeline } from "@/lib/studio/pipeline";
 import { useStudio } from "@/lib/studio/store";
 
 export default function TopBar() {
@@ -20,6 +22,7 @@ export default function TopBar() {
   const [scenes, setScenes] = useState<SceneRow[]>([]);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [pipelineBusy, setPipelineBusy] = useState(false);
   const importInput = useRef<HTMLInputElement>(null);
 
   const refresh = () => {
@@ -71,6 +74,43 @@ export default function TopBar() {
     toast.success("Project settings exported");
   };
 
+  const runPipeline = async () => {
+    setPipelineBusy(true);
+    const id = toast.loading("Starting pipeline…");
+    try {
+      const result = await runBipedPipeline({
+        onStep: (_step, label) => toast.loading(`${label}…`, { id }),
+      });
+      downloadStill(result.rigName);
+      toast.success(
+        `${result.rigName}: ${result.bones} bones skinned with ${result.skin}, ${result.capture} retargeted onto ${result.mappedJoints} joints — still rendered`,
+        { id },
+      );
+    } catch (error) {
+      toast.error((error as Error).message, { id });
+    } finally {
+      setPipelineBusy(false);
+    }
+  };
+
+  const onExportGlb = async () => {
+    try {
+      await exportRigGlb(useStudio.getState().assetName || name);
+      toast.success("Rig exported as GLB");
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
+  };
+
+  const onRenderStill = () => {
+    try {
+      downloadStill(name);
+      toast.success("Still rendered");
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
+  };
+
   return (
     <header className="hairline-b flex h-12 shrink-0 items-center gap-3 bg-[var(--header)] px-3">
       <div className="flex items-center gap-2">
@@ -95,6 +135,29 @@ export default function TopBar() {
         className="rounded-md border border-primary/50 bg-primary/15 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/25 disabled:opacity-50"
       >
         {busy ? "Saving…" : sceneId ? "Save" : "Save to cloud"}
+      </button>
+
+      <button
+        onClick={runPipeline}
+        disabled={pipelineBusy}
+        title="Build a biped rig, skin it, retarget a BVH capture and render"
+        className="rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
+      >
+        {pipelineBusy ? "Running…" : "Auto pipeline"}
+      </button>
+
+      <button
+        onClick={onExportGlb}
+        className="rounded-md border border-border bg-secondary px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+      >
+        Export GLB
+      </button>
+
+      <button
+        onClick={onRenderStill}
+        className="rounded-md border border-border bg-secondary px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+      >
+        Render still
       </button>
 
       <div className="relative">
