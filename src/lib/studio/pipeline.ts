@@ -3,10 +3,13 @@ import { createSkinDesign } from "./skinDesigner";
 import { useStudio } from "./store";
 
 /** Waits until a store selector becomes truthy (or times out). */
-function waitFor<T>(select: (s: ReturnType<typeof useStudio.getState>) => T, ms = 6000) {
+function waitFor<T>(
+  select: (s: ReturnType<typeof useStudio.getState>) => T | null | undefined,
+  ms = 6000,
+) {
   return new Promise<T>((resolve, reject) => {
     const initial = select(useStudio.getState());
-    if (initial) return resolve(initial);
+    if (initial) return resolve(initial as T);
     const timer = setTimeout(() => {
       unsub();
       reject(new Error("Timed out waiting for the viewport"));
@@ -16,7 +19,7 @@ function waitFor<T>(select: (s: ReturnType<typeof useStudio.getState>) => T, ms 
       if (!value) return;
       clearTimeout(timer);
       unsub();
-      resolve(value);
+      resolve(value as T);
     });
   });
 }
