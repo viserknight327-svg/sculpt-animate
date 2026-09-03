@@ -2,14 +2,20 @@ import * as THREE from "three";
 import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
 
 let rigRoot: THREE.Object3D | null = null;
+let rigClips: THREE.AnimationClip[] = [];
 
 /** The viewport registers the live rig subtree here so exporters can reach it. */
-export function registerRigRoot(root: THREE.Object3D | null) {
+export function registerRigRoot(root: THREE.Object3D | null, clips: THREE.AnimationClip[] = []) {
   rigRoot = root;
+  rigClips = clips;
 }
 
 export function getRigRoot() {
   return rigRoot;
+}
+
+export function getRigClips() {
+  return rigClips;
 }
 
 function download(blob: Blob, filename: string) {
@@ -26,7 +32,7 @@ function slug(name: string) {
 }
 
 /** Exports the current rig (skeleton, meshes, materials) as a binary glTF file. */
-export async function exportRigGlb(name: string, animations: THREE.AnimationClip[] = []) {
+export async function exportRigGlb(name: string, animations: THREE.AnimationClip[] = getRigClips()) {
   const root = getRigRoot();
   if (!root) throw new Error("No rig is loaded in the viewport yet");
   const exporter = new GLTFExporter();
