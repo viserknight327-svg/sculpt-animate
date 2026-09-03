@@ -55,6 +55,7 @@ export type ViewportSettings = {
   rimLight: number;
   exposure: number;
   fov: number;
+  turntable: boolean;
 };
 
 export type StudioTab = "animate" | "skin" | "mocap" | "manga" | "rig";
@@ -209,6 +210,7 @@ const DEFAULT_VIEWPORT: ViewportSettings = {
   rimLight: 1.4,
   exposure: 1,
   fov: 38,
+  turntable: false,
 };
 
 export const useStudio = create<StudioState>((set, get) => ({

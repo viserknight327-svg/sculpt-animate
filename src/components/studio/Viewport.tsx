@@ -13,6 +13,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { BVHLoader } from "three/examples/jsm/loaders/BVHLoader.js";
 import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { registerRigRoot } from "@/lib/studio/exporters";
 import { buildRig } from "@/lib/studio/rigbuilder";
 import { mirrorBoneName } from "@/lib/studio/retarget";
 import { useStudio, type MaterialOverride } from "@/lib/studio/store";
@@ -84,25 +85,52 @@ function MocapDriver({ bones }: { bones: Map<string, THREE.Bone> }) {
     return m;
   }, [result]);
 
+  /** Rest pose of the capture skeleton — retargeting transfers deltas, not absolutes. */
+  const sourceRest = useMemo(() => {
+    const m = new Map<string, THREE.Quaternion>();
+    result.skeleton.bones.forEach((b) => m.set(b.name, b.quaternion.clone()));
+    return m;
+  }, [result]);
+
+  const targetRest = useRef(new Map<string, THREE.Quaternion>());
+  useEffect(() => {
+    targetRest.current = new Map();
+    smoothed.current = new Map();
+  }, [bones, result]);
+
   useFrame(() => {
     const s = useStudio.getState();
     if (!s.mocapEnabled) return;
     const captureTime = Math.max(0, Math.min(s.time + s.mocapOffset, result.clip.duration));
     mixer.setTime(captureTime);
     const influence = s.mocapInfluence;
+    const delta = new THREE.Quaternion();
+    const goal = new THREE.Quaternion();
     for (const joint of Object.values(s.mapping)) {
       if (!joint?.source || !joint?.target) continue;
       const sourceName = s.mocapMirror ? mirrorBoneName(joint.source) : joint.source;
       const src = sourceMap.get(sourceName);
       const dst = bones.get(joint.target);
       if (!src || !dst) continue;
-      const previous = smoothed.current.get(joint.target) ?? dst.quaternion.clone();
-      previous.slerp(src.quaternion, Math.max(0.05, 1 - s.mocapSmoothing));
+
+      let rest = targetRest.current.get(joint.target);
+      if (!rest) {
+        rest = dst.quaternion.clone();
+        targetRest.current.set(joint.target, rest);
+      }
+      const srcRest = sourceRest.get(sourceName) ?? new THREE.Quaternion();
+      // delta = restSource⁻¹ · sourceCurrent, applied on top of the target's rest pose
+      delta.copy(srcRest).invert().multiply(src.quaternion);
+      goal.copy(rest).multiply(delta);
+
+      const previous = smoothed.current.get(joint.target) ?? goal.clone();
+      previous.slerp(goal, Math.max(0.05, 1 - s.mocapSmoothing));
       smoothed.current.set(joint.target, previous);
       if (influence >= 0.999) dst.quaternion.copy(previous);
-      else dst.quaternion.slerp(previous, influence);
+      else dst.quaternion.copy(rest).slerp(previous, influence);
     }
   }, 1);
+
 
   return (
     <group position={[1.6, 0, 0]} scale={0.011} visible={showBones}>
@@ -251,6 +279,12 @@ function RigBody({
     });
     setReady(true);
   }, [animations, materialMap, boneMap, setRigInfo]);
+
+  // expose the live rig to the GLB exporter
+  useEffect(() => {
+    registerRigRoot(model, animations);
+    return () => registerRigRoot(null, []);
+  }, [model, animations]);
 
   // clip switching
   useEffect(() => {
@@ -497,6 +531,8 @@ export default function Viewport() {
   const toolMode = useStudio((s) => s.toolMode);
   const setToolMode = useStudio((s) => s.setToolMode);
   const resetTransform = useStudio((s) => s.resetTransform);
+  const turntable = useStudio((s) => s.viewport.turntable);
+  const setViewport = useStudio((s) => s.setViewport);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -544,6 +580,13 @@ export default function Viewport() {
           </button>
         ))}
         <button
+          onClick={() => setViewport({ turntable: !turntable })}
+          title="Turntable orbit"
+          className={`ml-1 rounded px-2 py-1 text-[10px] transition-colors ${turntable ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}
+        >
+          Turntable
+        </button>
+        <button
           onClick={resetTransform}
           title="Reset transform"
           className="ml-1 rounded px-2 py-1 text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -569,6 +612,8 @@ export default function Viewport() {
         </Suspense>
         <OrbitControls
           makeDefault
+          autoRotate={turntable}
+          autoRotateSpeed={1.2}
           target={[0, 0.9, 0]}
           enableDamping
           dampingFactor={0.08}
