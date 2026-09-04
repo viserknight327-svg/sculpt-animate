@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { CANONICAL_JOINTS } from "@/lib/studio/retarget";
+import { listRigBones } from "@/lib/studio/rigbuilder";
 import {
   createSkinDesign,
   DEFAULT_SKIN_PROMPT,
@@ -88,6 +89,134 @@ function RigTab() {
             ))}
           </div>
         </Row>
+      </Panel>
+
+      <Panel title="Bone editor">
+        {s.assetKind !== "custom" ? (
+          <p className="text-[10px] leading-relaxed text-muted-foreground/70">
+            Build or auto-rig a procedural skeleton to edit bone lengths and joint names.
+          </p>
+        ) : (
+          <>
+            <div className="max-h-[280px] space-y-2 overflow-y-auto pr-1">
+              {listRigBones(s.rigSpec, s.boneEdits).map((bone) => {
+                const edit = s.boneEdits[bone.key];
+                return (
+                  <div
+                    key={bone.key}
+                    className="rounded-md border border-border bg-[var(--panel-raised)] p-2"
+                    style={{ marginLeft: bone.depth * 6 }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={edit?.name ?? bone.key}
+                        onChange={(event) => s.renameBone(bone.key, event.target.value)}
+                        className="min-w-0 flex-1 rounded border border-border bg-transparent px-1.5 py-1 text-[10px] focus:border-primary/60 focus:outline-none"
+                      />
+                      <span className="num shrink-0 text-[10px] text-muted-foreground">
+                        {bone.length.toFixed(2)}m
+                      </span>
+                    </div>
+                    <div className="mt-1 flex items-center gap-2">
+                      <input
+                        type="range"
+                        className="studio-slider flex-1"
+                        min={0.2}
+                        max={2.5}
+                        step={0.01}
+                        value={edit?.scale ?? 1}
+                        onChange={(event) => s.setBoneScale(bone.key, Number(event.target.value))}
+                      />
+                      <span className="num w-10 shrink-0 text-right text-[10px]">
+                        {(edit?.scale ?? 1).toFixed(2)}x
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => {
+                s.resetBoneEdits();
+                toast.success("Bone lengths and names reset to the generated rig");
+              }}
+              className="mt-2 w-full rounded-md border border-border bg-secondary py-1.5 text-xs text-muted-foreground hover:text-foreground"
+            >
+              Reset bone edits
+            </button>
+          </>
+        )}
+      </Panel>
+
+      <Panel title="Retarget mapping">
+        <div className="mb-2 flex gap-1">
+          <button
+            onClick={() => {
+              s.autoMapBones();
+              toast.success("Joints auto-mapped from the capture skeleton");
+            }}
+            className="flex-1 rounded-md border border-border bg-secondary py-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+          >
+            Auto-map
+          </button>
+          <button
+            onClick={() => {
+              CANONICAL_JOINTS.forEach((joint) => {
+                s.setMapping(joint.key, "source", null);
+                s.setMapping(joint.key, "target", null);
+              });
+              toast.success("Mapping cleared");
+            }}
+            className="flex-1 rounded-md border border-border bg-secondary py-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+          >
+            Clear
+          </button>
+        </div>
+        {CANONICAL_JOINTS.map((joint) => {
+          const entry = s.mapping[joint.key];
+          return (
+            <div key={joint.key} className="py-1">
+              <div className="mb-1 flex items-center justify-between">
+                <span className="label-xs">{joint.label}</span>
+                <span
+                  className={`text-[9px] ${entry?.source && entry?.target ? "text-primary" : "text-muted-foreground/60"}`}
+                >
+                  {entry?.source && entry?.target ? "linked" : "unmapped"}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-1">
+                <select
+                  value={entry?.source ?? ""}
+                  onChange={(event) =>
+                    s.setMapping(joint.key, "source", event.target.value || null)
+                  }
+                  className="min-w-0 truncate rounded border border-border bg-[var(--panel-raised)] px-1.5 py-1 text-[10px]"
+                >
+                  <option value="">source —</option>
+                  {s.sourceBones.map((bone, bi) => (
+                    <option key={`${joint.key}-s-${bone}-${bi}`} value={bone}>
+                      {bone}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={entry?.target ?? ""}
+                  onChange={(event) =>
+                    s.setMapping(joint.key, "target", event.target.value || null)
+                  }
+                  className="min-w-0 truncate rounded border border-border bg-[var(--panel-raised)] px-1.5 py-1 text-[10px]"
+                >
+                  <option value="">target —</option>
+                  {s.targetBones.map((bone, bi) => (
+                    <option key={`${joint.key}-t-${bone}-${bi}`} value={bone}>
+                      {bone}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          );
+        })}
       </Panel>
 
       <Panel title="Bone controls">
