@@ -399,13 +399,63 @@ function buildClips(root: THREE.Object3D, spec: RigSpec): THREE.AnimationClip[] 
   return clips;
 }
 
+/** Per-bone user overrides authored in the rig editor. */
+export type BoneEdit = { scale?: number; name?: string };
+export type BoneEdits = Record<string, BoneEdit>;
+
+function specTree(spec: RigSpec): BoneDef {
+  return spec.preset === "biped" || spec.preset === "avian" ? bipedTree(spec) : quadrupedTree(spec);
+}
+
+/** Flat, ordered description of the procedural skeleton for editor UIs. */
+export function listRigBones(
+  spec: RigSpec,
+  edits: BoneEdits = {},
+): { key: string; name: string; length: number; depth: number }[] {
+  const out: { key: string; name: string; length: number; depth: number }[] = [];
+  const walk = (def: BoneDef, depth: number) => {
+    const edit = edits[def.name];
+    out.push({
+      key: def.name,
+      name: edit?.name?.trim() || def.name,
+      length: def.length * (edit?.scale ?? 1),
+      depth,
+    });
+    def.children?.forEach((c) => walk(c, depth + 1));
+  };
+  walk(specTree(spec), 0);
+  return out;
+}
+
+/** Applies rig-editor overrides (length scale + rename) to the generated tree. */
+function applyEdits(def: BoneDef, edits: BoneEdits): BoneDef {
+  const edit = edits[def.name];
+  const scale = Math.max(0.1, edit?.scale ?? 1);
+  const length = def.length * scale;
+  const children = def.children?.map((child) => {
+    const next = applyEdits(child, edits);
+    // children stacked on the parent tip follow the new length
+    if (Math.abs(child.position[1] - def.length) < 1e-6) {
+      next.position = [child.position[0], length, child.position[2]];
+    }
+    return next;
+  });
+  return {
+    ...def,
+    name: edit?.name?.trim() || def.name,
+    length,
+    ...(children ? { children } : {}),
+  };
+}
 
 /** Builds a procedural, fully-named skeleton plus generated animation clips. */
-export function buildRig(spec: RigSpec): { root: THREE.Group; animations: THREE.AnimationClip[] } {
+export function buildRig(
+  spec: RigSpec,
+  edits: BoneEdits = {},
+): { root: THREE.Group; animations: THREE.AnimationClip[] } {
   const materials = makeMaterials();
   const bones: THREE.Bone[] = [];
-  const tree =
-    spec.preset === "biped" || spec.preset === "avian" ? bipedTree(spec) : quadrupedTree(spec);
+  const tree = applyEdits(specTree(spec), edits);
   const rootBone = buildBone(tree, materials, bones);
 
   const root = new THREE.Group();
@@ -416,3 +466,4 @@ export function buildRig(spec: RigSpec): { root: THREE.Group; animations: THREE.
   const animations = buildClips(root, spec);
   return { root, animations };
 }
+
