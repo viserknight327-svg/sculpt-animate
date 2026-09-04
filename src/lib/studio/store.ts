@@ -78,6 +78,13 @@ type StudioState = {
   buildCustomRig: (spec?: Partial<RigSpec>) => void;
   updateRigSpec: (patch: Partial<RigSpec>) => void;
 
+  // rig editor (per-bone overrides)
+  boneEdits: BoneEdits;
+  setBoneScale: (bone: string, scale: number) => void;
+  renameBone: (bone: string, name: string) => void;
+  resetBoneEdits: () => void;
+
+
   // rig introspection (published by the viewport)
   clipNames: string[];
   keyframeTimes: number[];
