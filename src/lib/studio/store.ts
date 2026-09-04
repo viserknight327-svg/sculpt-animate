@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { autoMap, type JointMapping } from "./retarget";
-import { DEFAULT_RIG_SPEC, type RigSpec } from "./rigbuilder";
+import { DEFAULT_RIG_SPEC, type BoneEdits, type RigSpec } from "./rigbuilder";
 import { SAMPLE_ASSETS } from "./samples";
 
 export type MaterialOverride = {
@@ -77,6 +77,13 @@ type StudioState = {
   rigSpec: RigSpec;
   buildCustomRig: (spec?: Partial<RigSpec>) => void;
   updateRigSpec: (patch: Partial<RigSpec>) => void;
+
+  // rig editor (per-bone overrides)
+  boneEdits: BoneEdits;
+  setBoneScale: (bone: string, scale: number) => void;
+  renameBone: (bone: string, name: string) => void;
+  resetBoneEdits: () => void;
+
 
   // rig introspection (published by the viewport)
   clipNames: string[];
@@ -251,6 +258,17 @@ export const useStudio = create<StudioState>((set, get) => ({
   },
   updateRigSpec: (patch) =>
     set((s) => ({ rigSpec: { ...s.rigSpec, ...patch }, assetName: patch.name ?? s.assetName })),
+
+  boneEdits: {},
+  setBoneScale: (bone, scale) =>
+    set((s) => ({
+      boneEdits: { ...s.boneEdits, [bone]: { ...s.boneEdits[bone], scale } },
+    })),
+  renameBone: (bone, name) =>
+    set((s) => ({
+      boneEdits: { ...s.boneEdits, [bone]: { ...s.boneEdits[bone], name } },
+    })),
+  resetBoneEdits: () => set({ boneEdits: {} }),
 
   clipNames: [],
   keyframeTimes: [],
@@ -452,6 +470,8 @@ export const useStudio = create<StudioState>((set, get) => ({
       posePresets: s.posePresets,
       blendStrength: s.blendStrength,
       objectTransform: s.objectTransform,
+      rigSpec: s.rigSpec,
+      boneEdits: s.boneEdits,
     };
   },
   restore: (data) => {
@@ -488,6 +508,8 @@ export const useStudio = create<StudioState>((set, get) => ({
       blendStrength: (d["blendStrength"] as number) ?? s.blendStrength,
       objectTransform:
         (d["objectTransform"] as StudioState["objectTransform"]) ?? s.objectTransform,
+      rigSpec: (d["rigSpec"] as RigSpec) ?? s.rigSpec,
+      boneEdits: (d["boneEdits"] as BoneEdits) ?? s.boneEdits,
       time: 0,
     }));
   },

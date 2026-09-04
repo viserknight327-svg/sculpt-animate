@@ -148,7 +148,8 @@ function GltfRig() {
 
 function ProceduralRig() {
   const spec = useStudio((s) => s.rigSpec);
-  const built = useMemo(() => buildRig(spec), [spec]);
+  const boneEdits = useStudio((s) => s.boneEdits);
+  const built = useMemo(() => buildRig(spec, boneEdits), [spec, boneEdits]);
   return <RigBody scene={built.root} animations={built.animations} />;
 }
 
