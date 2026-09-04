@@ -444,10 +444,10 @@ function Num({
   onChange: (v: number) => void;
 }) {
   return (
-    <label className="mb-1.5 block">
-      <span className="flex items-center justify-between text-[11px] text-muted-foreground">
-        {label}
-        <span className="num text-foreground">
+    <label className="mb-1 block rounded-md px-1 py-0.5 transition-colors hover:bg-accent/40">
+      <span className="flex items-center justify-between">
+        <span className="label-xs">{label}</span>
+        <span className="num text-[11px] text-foreground">
           {step >= 1 ? value : value.toFixed(2)}
           {unit ?? ""}
         </span>
@@ -459,8 +459,9 @@ function Num({
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="studio-slider mt-1 w-full"
+        className="studio-slider w-full"
       />
     </label>
   );
+
 }

@@ -146,27 +146,31 @@ export default function TopBar() {
         {pipelineBusy ? "Running…" : "Auto pipeline"}
       </button>
 
-      <button
-        onClick={onExportGlb}
-        className="rounded-md border border-border bg-secondary px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-      >
-        Export GLB
-      </button>
-
-      <button
-        onClick={onRenderStill}
-        className="rounded-md border border-border bg-secondary px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-      >
-        Render still
-      </button>
-
-      <div className="relative">
+      <div className="hidden items-center overflow-hidden rounded-md border border-border bg-secondary/60 lg:flex">
+        <button
+          onClick={onExportGlb}
+          title="Export the live rig and its clips as binary glTF"
+          className="px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          GLB
+        </button>
+        <span className="hairline-l h-4" />
+        <button
+          onClick={onRenderStill}
+          title="Download a full-resolution PNG of the viewport"
+          className="px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          Still
+        </button>
+        <span className="hairline-l h-4" />
         <button
           onClick={exportProject}
-          className="rounded-md border border-border bg-secondary px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          title="Export scene settings as JSON"
+          className="px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
-          Export project
+          Export
         </button>
+        <span className="hairline-l h-4" />
         <input
           ref={importInput}
           type="file"
@@ -190,11 +194,13 @@ export default function TopBar() {
         />
         <button
           onClick={() => importInput.current?.click()}
-          className="rounded-md border border-border bg-secondary px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          title="Import a previously exported project JSON"
+          className="px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
-          Import project
+          Import
         </button>
       </div>
+
 
       <div className="relative">
         <button
@@ -263,22 +269,7 @@ export default function TopBar() {
       </div>
 
       <div className="ml-auto flex items-center gap-2">
-        <button
-          onClick={() => {
-            const url = captureViewport();
-            if (!url) {
-              toast.error("Viewport not ready");
-              return;
-            }
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `${name.replace(/\s+/g, "-").toLowerCase()}.jpg`;
-            a.click();
-          }}
-          className="rounded-md border border-border bg-secondary px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-        >
-          Render still
-        </button>
+
         {loading ? null : user ? (
           <>
             <span className="hidden max-w-[160px] truncate text-xs text-muted-foreground md:inline">
