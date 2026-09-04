@@ -263,22 +263,7 @@ export default function TopBar() {
       </div>
 
       <div className="ml-auto flex items-center gap-2">
-        <button
-          onClick={() => {
-            const url = captureViewport();
-            if (!url) {
-              toast.error("Viewport not ready");
-              return;
-            }
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `${name.replace(/\s+/g, "-").toLowerCase()}.jpg`;
-            a.click();
-          }}
-          className="rounded-md border border-border bg-secondary px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-        >
-          Render still
-        </button>
+
         {loading ? null : user ? (
           <>
             <span className="hidden max-w-[160px] truncate text-xs text-muted-foreground md:inline">
